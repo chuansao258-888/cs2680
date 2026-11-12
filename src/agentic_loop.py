@@ -26,17 +26,32 @@ def run_agent(problem, workdir, enable_log):
         {"role": "user", "content": problem}
     ]
 
+    end_reason = "iteration_limit"
+    num_iterations = 0
+    #对话轮数
     for iteration in range(10):
+        num_iterations = iteration + 1
         completion = client.chat.completions.create(
             model="qwen3.6-35b-a3b",
             messages=messages,
             tools=[READ_FILE_TOOL, SEARCH_FILE_TOOL, EDIT_FILE_TOOL],
             extra_body={"enable_thinking": True},
             stream=True,
+            stream_options={"include_usage": True},
         )
         collected_tool_calls = {}
 
         for chunk in completion:
+            if chunk.usage is not None and log_file is not None:
+                write_event(log_file,
+                            "api_request",
+                            iteration = iteration+1,
+                            prompt_tokens = chunk.usage.prompt_tokens,
+                            completion_tokens = chunk.usage.completion_tokens,
+                            total_tokens = chunk.usage.total_tokens,
+                )
+
+
             if not chunk.choices:
                 continue
 
@@ -44,7 +59,7 @@ def run_agent(problem, workdir, enable_log):
             if delta.tool_calls:
                 for tool_calls in delta.tool_calls:
                     index = tool_calls.index
-
+                    #一个字典结构用于储存一次对话中的多个工具调用
                     if index not in collected_tool_calls:
                         collected_tool_calls[index] = {
                             "id": "",
@@ -69,7 +84,7 @@ def run_agent(problem, workdir, enable_log):
             if delta.content:
                 print(delta.content, end="", flush=True)
 
-        print("\nCollected tool calls:", collected_tool_calls)
+        # print("\nCollected tool calls:", collected_tool_calls)
 
         if collected_tool_calls:
             assistant_calls = []
@@ -94,7 +109,19 @@ def run_agent(problem, workdir, enable_log):
 
             # 第二遍：分别执行，并添加对应结果
             for index, call in collected_tool_calls.items():
+                if log_file is not None:
+                    try:
+                        log_arguments = json.loads(call["arguments"])
+                    except json.JSONDecodeError:
+                        log_arguments = call["arguments"]
+                    write_event(log_file,
+                                "tool_call",
+                                iteration = iteration+1,
+                                tool_name = call["name"],
+                                arguments = log_arguments,
+                    )
 
+                #工具调用
                 try:
                     arguments = json.loads(call["arguments"])
 
@@ -123,13 +150,26 @@ def run_agent(problem, workdir, enable_log):
 
                 except (KeyError, TypeError):
                     result = "Error: the arguments must contain a path."
-
+                if log_file is not None:
+                    write_event(log_file,
+                                "tool_result",
+                                iteration = iteration+1,
+                                tool_name = call["name"],
+                                result = result,
+                                is_error = result.startswith("Error:")
+                                )
                 messages.append({
                     "role": "tool",
                     "tool_call_id": call["id"],
                     "content": result,
                 })
+                # print("\nFile content:", result)
         else:
+            end_reason = "no_tool_calls"
             break
+    if log_file is not None:
+        write_event(log_file,
+                    "run_end",
+                    reason = end_reason,
+                    num_iterations = num_iterations,)
 
-        print("\nFile content:", result)
