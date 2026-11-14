@@ -70,19 +70,22 @@ if ! docker pull $PLATFORM_FLAG "$IMAGE" >&2; then
   echo "== using local image $IMAGE" >&2
 fi
 
+mkdir -p "$REPO_ROOT/madsLoop_logs/$INSTANCE_ID"
+
 docker run --rm $PLATFORM_FLAG \
   --entrypoint bash \
-  -v "$REPO_ROOT:/madsLoop" \
+  -v "$REPO_ROOT/madsLoop.py:/madsLoop/madsLoop.py:ro" \
+  -v "$REPO_ROOT/docker_env.sh:/madsLoop/docker_env.sh:ro" \
+  -v "$REPO_ROOT/src:/madsLoop/src:ro" \
+  -v "$REPO_ROOT/.problem_$IDX.txt:/problem.txt:ro" \
+  -v "$REPO_ROOT/madsLoop_logs/$INSTANCE_ID:/task_logs" \
   -e CS2680_API_KEY="${CS2680_API_KEY:-}" \
-  -e PROBLEM_FILE="/madsLoop/.problem_$IDX.txt" \
-  -e LOG_DEST="/madsLoop/madsLoop_logs/$INSTANCE_ID" \
+  -e PROBLEM_FILE="/problem.txt" \
+  -e LOG_DEST="/task_logs" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "$IMAGE" \
   -c 'set -e
-      # The container runs as root but /madsLoop is the host user`s repo.
-      # Whatever this script creates there must not be left root-owned
-      # (the host cannot delete it) — chown on ANY exit, success or crash.
-      trap "find /madsLoop ! -user \"$HOST_UID\" -exec chown \"$HOST_UID:$HOST_GID\" {} + 2>/dev/null || true" EXIT
+      # Agent code is read-only; only this task`s log directory is writable.
       # --- container hygiene (image quirks, fixed before docker_env.sh) ---
       # Some images ship /etc/pip.conf pointing at a local offline mirror
       # (http://127.0.0.1:9876/) that is not running here -> "Connection
@@ -174,9 +177,9 @@ docker run --rm $PLATFORM_FLAG \
       }
       ensure_openai
       cd /tmp
-      "$AGENT_PY" /madsLoop/madsLoop.py -p "$(cat "$PROBLEM_FILE")" --log "$WD"
+      "$AGENT_PY" /madsLoop/madsLoop.py -p "$(cat "$PROBLEM_FILE")" --log "$WD" >&2
       if [ -d madsLoop_logs ]; then
-        mkdir -p "$LOG_DEST" && cp -r madsLoop_logs/. "$LOG_DEST"/ && chown -R "$HOST_UID:$HOST_GID" /madsLoop/madsLoop_logs || true
+        cp -r madsLoop_logs/. "$LOG_DEST"/ && chown -R "$HOST_UID:$HOST_GID" "$LOG_DEST" || true
       else
         echo "== WARNING: agent wrote no madsLoop_logs/ despite --log" >&2
       fi
