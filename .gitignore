@@ -1,0 +1,16 @@
+# Local editor settings and Python environments
+.idea/
+.venv*/
+__pycache__/
+*.py[cod]
+
+# Generated task runs and evaluation artifacts
+madsLoop_logs/
+model_patch_*.diff
+patches.json
+pro_eval/
+pro_eval.backup-*/
+run_logs/
+SWE-bench_Pro-os/
+.problem_*.txt
+edit_test.txt
