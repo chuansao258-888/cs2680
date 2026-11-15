@@ -1,0 +1,30 @@
+[
+  {
+    "instance_id": "boltons__issue393",
+    "issue": "https://github.com/mahmoud/boltons/issues/393",
+    "pull_request": "https://github.com/mahmoud/boltons/pull/394",
+    "base_commit": "ce7c7d2b15ea189c1284a48d742a7862bfae8606",
+    "fix_commit": "17374731bcc404908726a65734f941d789f23a78"
+  },
+  {
+    "instance_id": "boltons__issue297",
+    "issue": "https://github.com/mahmoud/boltons/issues/297",
+    "pull_request": "https://github.com/mahmoud/boltons/pull/302",
+    "base_commit": "6505c6b5565275d484e0e3907a471944441f0c57",
+    "fix_commit": "93185b224ebd60df01df88d64e574a3f651987c5"
+  },
+  {
+    "instance_id": "boltons__issue235",
+    "issue": "https://github.com/mahmoud/boltons/issues/235",
+    "pull_request": "https://github.com/mahmoud/boltons/pull/234",
+    "base_commit": "daa5371e90767aec1892dab9c121720a84134b39",
+    "fix_commit": "eefa5ee60461fc16463385f8fcc546a0c1233465"
+  },
+  {
+    "instance_id": "boltons__issue241",
+    "issue": "https://github.com/mahmoud/boltons/issues/241",
+    "pull_request": "https://github.com/mahmoud/boltons/pull/245",
+    "base_commit": "9c99fd6e4a345803a43003284cd2aed8a772eb01",
+    "fix_commit": "81e44a2319ce0bef0de44f1059762b97879cb35d"
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "boltons__collections440": {
+    "instance_id": "boltons__collections440",
+    "repo": "mahmoud/boltons",
+    "base_commit": "efff866a3b66fdafc817894390742e1d8bc025e5",
+    "docker_image": "cs2680-mytest/boltons__collections440:v1",
+    "problem_statement": "Two collection implementations need fixes. BarrelList should behave like a Python list for out-of-range indexing, insertion beyond either end, and popping after its internal tail segments become empty, including when it has multiple internal segments. IndexedSet bulk difference_update and intersection_update become inefficient for many scattered removals because repeated internal compaction can repeatedly traverse the collection. Make bulk removal linear in the size of the collection, preserve iteration order and indexing, and retain existing behavior for small updates.",
+    "requirements": "Implement list-compatible bounds and insertion semantics, preserve correct pop behavior across empty segments, and ensure large bulk set removals avoid repeated full compaction while preserving order and indexing.",
+    "interface": "boltons.listutils.BarrelList; boltons.setutils.IndexedSet.difference_update and intersection_update."
+  }
+}

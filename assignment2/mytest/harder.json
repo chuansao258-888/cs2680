@@ -1,0 +1,11 @@
+{
+  "boltons__cache_copy": {
+    "instance_id": "boltons__cache_copy",
+    "repo": "mahmoud/boltons",
+    "base_commit": "961dcff3f42e73b245aef65e377fe82763b257bb",
+    "docker_image": "cs2680-mytest/boltons__cache_copy:v1",
+    "problem_statement": "Copying boltons.cacheutils LRI and LRU caches can mutate the original cache's hit statistics or recency and lose the copied cache's eviction behavior and missing-key callback. Update copying so it preserves the source state and the copy's cache behavior, while the new cache has independent contents and starts with fresh statistics.",
+    "requirements": "Copying must not change source hit counts or eviction order; the copy must preserve eviction order and on_miss behavior and must be independently mutable.",
+    "interface": "boltons.cacheutils.LRI.copy and LRU.copy."
+  }
+}

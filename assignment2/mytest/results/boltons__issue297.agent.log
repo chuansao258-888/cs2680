@@ -1,0 +1,15 @@
+== fail_to_pass: Reproduction ==
+test_equal_bounds_inclusive_terminates (__main__.Reproduction.test_equal_bounds_inclusive_terminates) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+== pass_to_pass: Regression ==
+test_increasing_and_exclusive_equal (__main__.Regression.test_increasing_and_exclusive_equal) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+RESOLVED: boltons__issue297

@@ -1,0 +1,27 @@
+== fail_to_pass: Reproduction ==
+test_senses (__main__.Reproduction.test_senses) ... FAIL
+
+======================================================================
+FAIL: test_senses (__main__.Reproduction.test_senses)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/assessment/test_cases.py", line 6, in test_senses
+    self.assertEqual(singularize("senses"), "sense")
+AssertionError: 'sens' != 'sense'
+- sens
++ sense
+?     +
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)
+== pass_to_pass: Regression ==
+test_other_words (__main__.Regression.test_other_words) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+unresolved: boltons__issue241

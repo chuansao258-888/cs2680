@@ -1,0 +1,38 @@
+== fail_to_pass: Reproduction ==
+test_shared_tuple_is_visited_on_each_path (__main__.Reproduction.test_shared_tuple_is_visited_on_each_path) ... FAIL
+
+======================================================================
+FAIL: test_shared_tuple_is_visited_on_each_path (__main__.Reproduction.test_shared_tuple_is_visited_on_each_path)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/assessment/test_cases.py", line 8, in test_shared_tuple_is_visited_on_each_path
+    self.assertEqual(research(root), [((None,), root), (("first",), shared), (("first", 0), "hello"), (("second",), shared), (("second", 0), "hello")])
+AssertionError: Lists differ: [((No[92 chars] 'hello')] != [((No[92 chars] 'hello'), (('second',), ('hello',)), (('second', 0), 'hello')]
+
+Second list contains 2 additional elements.
+First extra element 3:
+(('second',), ('hello',))
+
+  [((None,), {'first': ('hello',), 'second': ('hello',)}),
+   (('first',), ('hello',)),
+-  (('first', 0), 'hello')]
+?                         ^
+
++  (('first', 0), 'hello'),
+?                         ^
+
++  (('second',), ('hello',)),
++  (('second', 0), 'hello')]
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+FAILED (failures=1)
+== pass_to_pass: Regression ==
+test_distinct_branches_still_traversed (__main__.Regression.test_distinct_branches_still_traversed) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+unresolved: boltons__issue393

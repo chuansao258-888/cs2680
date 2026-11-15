@@ -47,16 +47,41 @@ fi
 # On Apple Silicon set PLATFORM_FLAG="--platform linux/amd64"
 PLATFORM_FLAG="${PLATFORM_FLAG:-}"
 
-read -r INSTANCE_ID IMAGE < <(python3 -c "
+read -r INSTANCE_ID IMAGE < <(python3 -c '
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    task = list(json.load(source).values())[int(sys.argv[2])]
+print(task["instance_id"], task["docker_image"])
+' "$TASKS_JSON" "$IDX")
+
+# Give the agent all task-side descriptions, but never evaluation test data.
+python3 - "$TASKS_JSON" "$IDX" "$REPO_ROOT/.problem_$IDX.txt" <<'PY'
 import json
-t = list(json.load(open('$TASKS_JSON')).values())[$IDX]
-print(t['instance_id'], t['docker_image'])
-")
-python3 -c "
-import json
-t = list(json.load(open('$TASKS_JSON')).values())[$IDX]
-open('$REPO_ROOT/.problem_$IDX.txt', 'w').write(t['problem_statement'])
-"
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    task = list(json.load(source).values())[int(sys.argv[2])]
+
+def text_field(name):
+    value = task.get(name, "")
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string")
+    # Some task fields contain a JSON-encoded string inside the JSON document.
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return value
+    return decoded if isinstance(decoded, str) else value
+
+parts = [text_field("problem_statement")]
+for field, heading in (("requirements", "Requirements"), ("interface", "Interface")):
+    value = text_field(field)
+    if value.strip():
+        parts.append(f"## {heading}\n\n{value}")
+
+with open(sys.argv[3], "w", encoding="utf-8") as destination:
+    destination.write("\n\n".join(parts))
+PY
 
 echo "== task $IDX: $INSTANCE_ID" >&2
 echo "== image: $IMAGE" >&2

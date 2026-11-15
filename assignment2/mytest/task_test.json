@@ -1,0 +1,6 @@
+{
+  "boltons__issue393": {"before_repo_set_cmd": "git -C /app reset --hard ce7c7d2b15ea189c1284a48d742a7862bfae8606", "selected_test_files_to_run": ["/assessment/test_cases.py"], "fail_to_pass": ["Reproduction"], "pass_to_pass": ["Regression"]},
+  "boltons__issue297": {"before_repo_set_cmd": "git -C /app reset --hard 6505c6b5565275d484e0e3907a471944441f0c57", "selected_test_files_to_run": ["/assessment/test_cases.py"], "fail_to_pass": ["Reproduction"], "pass_to_pass": ["Regression"]},
+  "boltons__issue235": {"before_repo_set_cmd": "git -C /app reset --hard daa5371e90767aec1892dab9c121720a84134b39", "selected_test_files_to_run": ["/assessment/test_cases.py"], "fail_to_pass": ["Reproduction"], "pass_to_pass": ["Regression"]},
+  "boltons__issue241": {"before_repo_set_cmd": "git -C /app reset --hard 9c99fd6e4a345803a43003284cd2aed8a772eb01", "selected_test_files_to_run": ["/assessment/test_cases.py"], "fail_to_pass": ["Reproduction"], "pass_to_pass": ["Regression"]}
+}

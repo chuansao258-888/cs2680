@@ -1,0 +1,18 @@
+{
+  "boltons__issue393": {
+    "instance_id": "boltons__issue393", "repo": "mahmoud/boltons", "base_commit": "ce7c7d2b15ea189c1284a48d742a7862bfae8606", "docker_image": "cs2680-mytest/boltons__issue393:v1",
+    "problem_statement": "In boltons.iterutils.research, a nested structure can omit a branch when two paths refer to the same tuple object. When two dictionary keys point to the same tuple containing a value, research should visit both paths and their elements in traversal order. Preserve ordinary traversal behavior.", "requirements": "Visit both paths when they refer to the same tuple, preserving traversal order and existing ordinary traversal behavior.", "interface": "boltons.iterutils.research"
+  },
+  "boltons__issue297": {
+    "instance_id": "boltons__issue297", "repo": "mahmoud/boltons", "base_commit": "6505c6b5565275d484e0e3907a471944441f0c57", "docker_image": "cs2680-mytest/boltons__issue297:v1",
+    "problem_statement": "In boltons.timeutils.daterange, equal start and stop bounds may produce an infinite iterator with inclusive=True. The inclusive range should yield the date once and terminate; the default exclusive range should be empty. Preserve ordinary increasing ranges.", "requirements": "For equal bounds, the inclusive range yields one date and terminates; the default exclusive range is empty. Preserve ordinary increasing ranges.", "interface": "boltons.timeutils.daterange"
+  },
+  "boltons__issue235": {
+    "instance_id": "boltons__issue235", "repo": "mahmoud/boltons", "base_commit": "daa5371e90767aec1892dab9c121720a84134b39", "docker_image": "cs2680-mytest/boltons__issue235:v1",
+    "problem_statement": "The SpooledStringIO and SpooledBytesIO file-like objects lack standard seekable(), readable(), and writable() capability methods. Implement these methods so both streams report support for seeking, reading, and writing, preserving their existing behavior.", "requirements": "Both streams should report that they support seeking, reading, and writing without changing existing behavior.", "interface": "SpooledStringIO and SpooledBytesIO: seekable(), readable(), writable()."
+  },
+  "boltons__issue241": {
+    "instance_id": "boltons__issue241", "repo": "mahmoud/boltons", "base_commit": "9c99fd6e4a345803a43003284cd2aed8a772eb01", "docker_image": "cs2680-mytest/boltons__issue241:v1",
+    "problem_statement": "In boltons.strutils.singularize, the plural word senses incorrectly becomes sens instead of sense. Correct it while preserving the existing behavior for words such as lenses and cats.", "requirements": "Convert senses to sense and preserve existing behavior for words such as lenses and cats.", "interface": "boltons.strutils.singularize"
+  }
+}

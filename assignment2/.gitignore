@@ -14,3 +14,6 @@ run_logs/
 SWE-bench_Pro-os/
 .problem_*.txt
 edit_test.txt
+
+# Archived experiment outputs and local backups
+test_results/

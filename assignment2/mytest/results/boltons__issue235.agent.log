@@ -1,0 +1,15 @@
+== fail_to_pass: Reproduction ==
+test_capability_methods (__main__.Reproduction.test_capability_methods) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+== pass_to_pass: Regression ==
+test_read_write_seek (__main__.Regression.test_read_write_seek) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+RESOLVED: boltons__issue235

@@ -1,0 +1,15 @@
+== fail_to_pass: Reproduction ==
+test_senses (__main__.Reproduction.test_senses) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+== pass_to_pass: Regression ==
+test_other_words (__main__.Regression.test_other_words) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+RESOLVED: boltons__issue241

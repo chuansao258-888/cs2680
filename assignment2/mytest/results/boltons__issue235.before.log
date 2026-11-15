@@ -1,0 +1,35 @@
+== fail_to_pass: Reproduction ==
+test_capability_methods (__main__.Reproduction.test_capability_methods) ... 
+  test_capability_methods (__main__.Reproduction.test_capability_methods) (cls=<class 'boltons.ioutils.SpooledStringIO'>) ... ERROR
+  test_capability_methods (__main__.Reproduction.test_capability_methods) (cls=<class 'boltons.ioutils.SpooledBytesIO'>) ... ERROR
+
+======================================================================
+ERROR: test_capability_methods (__main__.Reproduction.test_capability_methods) (cls=<class 'boltons.ioutils.SpooledStringIO'>)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/assessment/test_cases.py", line 9, in test_capability_methods
+    self.assertTrue(stream.seekable())
+                    ^^^^^^^^^^^^^^^
+AttributeError: 'SpooledStringIO' object has no attribute 'seekable'
+
+======================================================================
+ERROR: test_capability_methods (__main__.Reproduction.test_capability_methods) (cls=<class 'boltons.ioutils.SpooledBytesIO'>)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/assessment/test_cases.py", line 9, in test_capability_methods
+    self.assertTrue(stream.seekable())
+                    ^^^^^^^^^^^^^^^
+AttributeError: 'SpooledBytesIO' object has no attribute 'seekable'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (errors=2)
+== pass_to_pass: Regression ==
+test_read_write_seek (__main__.Regression.test_read_write_seek) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+unresolved: boltons__issue235

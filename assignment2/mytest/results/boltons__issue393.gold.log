@@ -1,0 +1,15 @@
+== fail_to_pass: Reproduction ==
+test_shared_tuple_is_visited_on_each_path (__main__.Reproduction.test_shared_tuple_is_visited_on_each_path) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+== pass_to_pass: Regression ==
+test_distinct_branches_still_traversed (__main__.Regression.test_distinct_branches_still_traversed) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+RESOLVED: boltons__issue393

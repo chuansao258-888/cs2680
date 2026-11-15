@@ -1,0 +1,20 @@
+# Local credentials and configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local editors, Python environments and caches
+.idea/
+**/.idea/
+.venv*/
+**/.venv*/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Backup of the original assignment2 Git metadata
+/.assignment2-git-backup/
+assignment2/.git-empty-backup/
