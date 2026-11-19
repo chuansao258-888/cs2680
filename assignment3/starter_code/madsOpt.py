@@ -46,17 +46,18 @@ File handshake with evaluation_scripts/run_all.py, all under .tasks/seq/:
     host  -> agent resp_<n>.json  {"n", "ok", ...payload | "error"}
     host  -> agent ready | shutdown ;  agent -> host  end   (agent finished)
 Patch folders: .tasks/patches/<k>/patch.diff (visible to both sides).
-Course API: run_all.py sets CS2680_BASE_URL to the egress proxy (http://a3proxy_<run>:3128/v1,
-the agent container's only way to the API: https://api.cs2680.com itself is unreachable from
-inside it); CS2680_API_KEY and the model ids CS2680_MODEL_EXPERT / _STANDARD / _STARTER come from
-the host (run_all.py passes every CS2680_* variable into the agent container). Your Agent reads
-them with os.environ — never a hard-coded URL.
+Model API: run_all.py sets CS2680_BASE_URL to the egress proxy (http://a3proxy_<run>:3128/v1),
+the agent container's only way to the configured upstream. CS2680_API_KEY and the model ids
+CS2680_MODEL_EXPERT / _STANDARD / _STARTER come from the host (run_all.py passes every CS2680_*
+variable into the agent container). Your Agent reads them with os.environ — never a hard-coded URL.
 Requires Python 3.10+, the `openai` package, and the stdlib.
 """
 
 import argparse
 import os
+import re
 import sys
+import traceback
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +81,9 @@ def main() -> int:
         _log("shutdown by the dispatcher")
     except Exception as e:
         _log(f"Agent.run raised {type(e).__name__}: {e}")
+        detail = traceback.format_exc()
+        detail = re.sub(r"(Bearer\s+)[^\s'\"]+", r"\1[REDACTED]", detail)
+        print(detail, file=sys.stderr, end="")
         rc = 1
     finally:
         for lg in dispatcher._loggers.values():

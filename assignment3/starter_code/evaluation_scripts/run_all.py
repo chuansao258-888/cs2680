@@ -6,12 +6,10 @@
 
   CS2680_*        every CS2680_* variable is passed into the agent container as is, except
                   CS2680_BASE_URL: the agent gets http://a3proxy_<run>:3128/v1 (the egress proxy)
-  A3_API_UPSTREAM the course API the egress proxy forwards to, default https://api.cs2680.com
-
-  Session id: every course API request of a run carries <First>_<Last>_<UTC start time> (the egress
-  proxy adds it; dispatcher/session.py), with your name from dispatcher/student_name.json: fill it
-  in, or run this once in a terminal and answer. The id is printed and kept in run_logs/session_id.
-  A3_SESSION_ID   the grader's id for a grading (sub_<n>_<UTC>[_c<k>]), used instead of the name
+  A3_API_UPSTREAM    the API origin the egress proxy forwards to, default https://api.cs2680.com
+  A3_API_PATH_PREFIX path inserted before forwarded /v1/... requests, default empty
+  MADSOPT_LIVE_TRACE print model replies and tool activity as the agent runs, default 1
+  MADSOPT_LIVE_TRACE_MAX_CHARS  max characters shown for one trace field, default 4000
 
   --limit N       only the first N tasks can be opened (0 = preflight: start the agent, start
                   and health-check every task's sandbox, check egress, stop)
@@ -105,6 +103,7 @@ AGENT_IMAGE = os.environ.get("A3_AGENT_IMAGE", "cs2680-a3-agent")
 SBX_CPUS = os.environ.get("A3_SBX_CPUS", "1"); SBX_MEM = os.environ.get("A3_SBX_MEM", "4g")
 SBX_PORT = 8000; PROXY_PORT = 3128
 API_UPSTREAM = os.environ.get("A3_API_UPSTREAM", "https://api.cs2680.com")
+API_PATH_PREFIX = os.environ.get("A3_API_PATH_PREFIX", "")
 MAX_LIVE = int(os.environ.get("A3_MAX_LIVE", "5"))
 MAX_GRADING = int(os.environ.get("A3_MAX_GRADING", "3"))
 EVAL_TIMEOUT = int(os.environ.get("A3_EVAL_TIMEOUT", "2100"))
@@ -131,8 +130,8 @@ def log(msg: str):
 
 
 DOCKER = ["docker"]   # set by resolve_docker(); every sh("docker", ...) goes through it
-SESSION = None        # set by main(): this run's session id (dispatcher/session.py)
-
+LIVE_AGENT_LOG_PROCESS = None
+LIVE_AGENT_LOG_THREAD = None
 
 def resolve_docker():
     """Plain `docker` if this user may use it; else `sudo -n -E docker`: the password is asked
@@ -169,6 +168,43 @@ def sh(*cmd, check=True, capture=True, **kw) -> subprocess.CompletedProcess:
     return subprocess.run(list(cmd), check=check, text=True,
                           stdout=subprocess.PIPE if capture else None,
                           stderr=subprocess.PIPE if capture else None, **kw)
+
+
+def start_live_agent_log():
+    """Forward the agent container's stderr/stdout to this runner's terminal."""
+    global LIVE_AGENT_LOG_PROCESS, LIVE_AGENT_LOG_THREAD
+    LIVE_AGENT_LOG_PROCESS = subprocess.Popen(
+        [*DOCKER, "logs", "-f", AGENT],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    def forward():
+        assert LIVE_AGENT_LOG_PROCESS and LIVE_AGENT_LOG_PROCESS.stdout
+        for line in LIVE_AGENT_LOG_PROCESS.stdout:
+            try:
+                print(f"[agent] {line}", file=sys.stderr, end="", flush=True)
+            except OSError:
+                return
+
+    LIVE_AGENT_LOG_THREAD = threading.Thread(target=forward, daemon=True)
+    LIVE_AGENT_LOG_THREAD.start()
+
+
+def stop_live_agent_log():
+    global LIVE_AGENT_LOG_PROCESS, LIVE_AGENT_LOG_THREAD
+    if LIVE_AGENT_LOG_PROCESS is not None:
+        LIVE_AGENT_LOG_PROCESS.terminate()
+        try:
+            LIVE_AGENT_LOG_PROCESS.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            LIVE_AGENT_LOG_PROCESS.kill()
+        LIVE_AGENT_LOG_PROCESS = None
+    if LIVE_AGENT_LOG_THREAD is not None:
+        LIVE_AGENT_LOG_THREAD.join(timeout=1)
+        LIVE_AGENT_LOG_THREAD = None
 
 
 def running(name: str) -> bool:
@@ -438,11 +474,11 @@ def create_internal_network(name: str):
 def start_infra():
     create_internal_network(NET)
     create_internal_network(EGRESS)
-    log(f"agent {AGENT} ({AGENT_IMAGE}); networks {NET}, {EGRESS}; API {API_BASE_URL} -> {API_UPSTREAM}; "
+    log(f"agent {AGENT} ({AGENT_IMAGE}); networks {NET}, {EGRESS}; API {API_BASE_URL} -> {API_UPSTREAM}{API_PATH_PREFIX}; "
         f"max live {MAX_LIVE}, max grading {MAX_GRADING}, eval timeout {EVAL_TIMEOUT}s")
     sh("docker", "run", "-d", "--name", PROXY, "--network", "bridge", "-v", f"{ROOT}/dispatcher:/dispatcher:ro",
        AGENT_IMAGE, "python3", "-B", "/dispatcher/egress_proxy.py", "--port", str(PROXY_PORT), "--upstream", API_UPSTREAM,
-       "--session", SESSION)
+       "--path-prefix", API_PATH_PREFIX)
     sh("docker", "network", "connect", EGRESS, PROXY)
     host_id = f"{os.getuid()}:{os.getgid()}"
     script = (
@@ -453,7 +489,8 @@ def start_infra():
         'mkdir -p /madsOpt/madsOpt_logs && cp -r madsOpt_logs/. /madsOpt/madsOpt_logs/ 2>/dev/null || true\n')
     env = [*[x for v in sorted(os.environ) if v.startswith("CS2680_") and v != "CS2680_BASE_URL"
              for x in ("-e", v)],                                                            # key + model ids
-           "-e", "MADSOPT_MAX_ITERATIONS",
+           "-e", "MADSOPT_MAX_ITERATIONS", "-e", "MADSOPT_LIVE_TRACE",
+           "-e", "MADSOPT_LIVE_TRACE_MAX_CHARS",
            "-e", f"CS2680_BASE_URL={API_BASE_URL}",     # the egress proxy: the agent's only way to the API
            "-e", f"HOST_ID={host_id}", "-e", "PYTHONDONTWRITEBYTECODE=1"]
     hidden = f"{HOSTLOG}/hidden.json"     # the task lists (instance ids, hidden test names) read as {} in the agent
@@ -469,9 +506,11 @@ def start_infra():
         if not running(AGENT):
             sys.exit("agent container died during setup (run_logs/agent.log)")
         time.sleep(1)
+    start_live_agent_log()
 
 
 def cleanup():
+    stop_live_agent_log()
     sh("docker", "exec", AGENT, "chown", "-R", f"{os.getuid()}:{os.getgid()}", "/madsOpt/.tasks", "/madsOpt/madsOpt_logs", check=False)
     for name, out in ((AGENT, "agent.log"), (PROXY, "proxy.log")):
         r = sh("docker", "logs", name, check=False)
@@ -806,26 +845,12 @@ def _stop_signal(signum, frame):
     raise KeyboardInterrupt   # SIGTERM / SIGHUP: handled exactly like Ctrl-C (see main)
 
 
-def session_id() -> str:
-    """dispatcher/session.py's id for this run, run from its source before anything is started (the
-    agent container, which could only read that folder anyway, does not exist yet; no __pycache__)."""
-    path = os.path.join(ROOT, "dispatcher", "session.py")
-    ns = {"__name__": "a3_session", "__file__": path}
-    exec(compile(open(path).read(), path, "exec"), ns)
-    return ns["session_id"]()
-
-
 def main() -> int:
-    global SESSION
     args = parse_args()
-    SESSION = session_id()                         # first: without a name, nothing is started
     preconditions()
     shutil.rmtree(".tasks", ignore_errors=True); shutil.rmtree("run_logs", ignore_errors=True)
     for d in (SEQ, ".tasks/trace", PATCHES, "run_logs", "madsOpt_logs"):
         os.makedirs(d, exist_ok=True)              # host-owned before the (root) agent container starts
-    with open("run_logs/session_id", "w") as f:
-        f.write(SESSION + "\n")
-    log(f"session {SESSION} (sent with every course API request of this run)")
     resolve_docker()                               # after run_logs/ exists: its sudo fallback logs there
     os.makedirs(HOSTLOG, exist_ok=True)
     snapshot_scripts()

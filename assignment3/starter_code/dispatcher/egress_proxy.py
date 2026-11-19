@@ -7,7 +7,7 @@ network shared with the agent container; the agent itself is on internal
 networks only (no gateway, no DNS to the outside). run_all.py points the
 agent's OpenAI client here with CS2680_BASE_URL=http://<this container>:<port>/v1.
 
-    python3 egress_proxy.py --port 3128 --upstream https://api.cs2680.com --session <id>
+    python3 egress_proxy.py --port 3128 --upstream https://api.cs2680.com
 
 Behaviour:
 - A reverse proxy, not a tunnel: the agent sends plain HTTP requests (on the
@@ -21,10 +21,8 @@ Behaviour:
   segments is refused (403) before any outbound connection is made.
 - The Host header is always the upstream's; hop-by-hop headers are dropped.
   Responses are passed back as they arrive (streamed replies work).
-- With --session (run_all.py always gives it: dispatcher/session.py), every
-  forwarded request carries the run's session id: an X-Session-Id header and a
-  "cs2680-session/<id>" token at the end of the User-Agent. Whatever the agent
-  sent for either (an X-Session-Id, a cs2680-session token) is replaced.
+- The proxy drops any incoming X-Session-Id header and does not add identity
+  headers of its own.
 - One log line per request: method, path, status, bytes, seconds. Headers and
   bodies (the API key, prompts, replies) pass through but are never logged.
 Stdlib only, one thread per client connection.
@@ -33,15 +31,13 @@ Stdlib only, one thread per client connection.
 import argparse
 import http.client
 import http.server
-import re
 import ssl
 import sys
 import time
 import urllib.parse
 
 UPSTREAM = None        # (scheme, host, port, Host header value), from --upstream
-SESSION = None         # the run's session id, from --session
-SESSION_OK = re.compile(r"[A-Za-z0-9._-]{1,120}")
+UPSTREAM_PATH_PREFIX = ""  # prepended to forwarded /v1/... paths, from --path-prefix
 PREFIX = "/v1/"
 MAX_BODY = 64 << 20    # bytes of one request body
 CONNECT_TIMEOUT_S = 30
@@ -130,18 +126,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             try:
                 conn.connect()
                 conn.sock.settimeout(READ_TIMEOUT_S)
-                drop = HOP | {t.strip().lower() for t in self.headers.get("Connection", "").split(",")}
-                if SESSION:
-                    drop |= {"x-session-id", "user-agent"}
-                conn.putrequest(self.command, self.path, skip_host=True, skip_accept_encoding=True)
+                drop = HOP | {"x-session-id"} | {
+                    t.strip().lower() for t in self.headers.get("Connection", "").split(",")
+                }
+                conn.putrequest(
+                    self.command,
+                    UPSTREAM_PATH_PREFIX + self.path,
+                    skip_host=True,
+                    skip_accept_encoding=True,
+                )
                 conn.putheader("Host", host_header)
                 for k, v in self.headers.items():
                     if k.lower() not in drop:
                         conn.putheader(k, v)
-                if SESSION:
-                    ua = re.sub(r"\s*cs2680-session/\S*", "", self.headers.get("User-Agent", "")).strip()
-                    conn.putheader("User-Agent", f"{ua} cs2680-session/{SESSION}".strip())
-                    conn.putheader("X-Session-Id", SESSION)
                 if body is not None:
                     conn.putheader("Content-Length", str(len(body)))
                 conn.endheaders(body)
@@ -195,16 +192,18 @@ class Server(http.server.ThreadingHTTPServer):
 
 
 def main() -> int:
-    global UPSTREAM, SESSION
+    global UPSTREAM, UPSTREAM_PATH_PREFIX
     ap = argparse.ArgumentParser(description="CS2680 A3 egress proxy (reverse proxy to the course API)")
     ap.add_argument("--port", type=int, default=3128)
     ap.add_argument("--upstream", required=True,
                     help="the one origin requests are forwarded to, e.g. https://api.cs2680.com")
-    ap.add_argument("--session", help="the run's session id, sent with every forwarded request")
+    ap.add_argument("--path-prefix", default="",
+                    help="path prepended to forwarded /v1/... requests, e.g. /compatible-mode")
     args = ap.parse_args()
-    if args.session is not None and not SESSION_OK.fullmatch(args.session):
-        ap.error(f"--session must be 1-120 of A-Z a-z 0-9 . _ -, not {args.session!r}")
-    SESSION = args.session
+    prefix = args.path_prefix.rstrip("/")
+    if prefix and (not prefix.startswith("/") or "?" in prefix or "#" in prefix):
+        ap.error(f"--path-prefix must be an absolute path prefix, not {args.path_prefix!r}")
+    UPSTREAM_PATH_PREFIX = prefix
     u = urllib.parse.urlsplit(args.upstream)
     if u.scheme not in ("https", "http") or not u.hostname or u.path not in ("", "/") or u.query:
         ap.error(f"--upstream must be an origin like https://api.cs2680.com, not {args.upstream!r}")
@@ -212,8 +211,8 @@ def main() -> int:
     default = port == (443 if u.scheme == "https" else 80)
     UPSTREAM = (u.scheme, u.hostname, port, u.hostname if default else f"{u.hostname}:{port}")
     srv = Server(("0.0.0.0", args.port), Handler)
-    _log(f"listening on {args.port}; forwarding {PREFIX}... to {u.scheme}://{UPSTREAM[3]}; "
-         f"session {SESSION or '(none)'}")
+    _log(f"listening on {args.port}; forwarding {PREFIX}... to {u.scheme}://{UPSTREAM[3]}{prefix}; "
+         "no identity headers are added")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

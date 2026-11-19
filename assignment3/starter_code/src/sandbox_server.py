@@ -37,13 +37,14 @@ import subprocess
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
-MAX_TIMEOUT_S = 900          # longest timeout_s /exec accepts
+MAX_TIMEOUT_S = 900  # longest timeout_s /exec accepts
 DEFAULT_TIMEOUT_S = 300
 MAX_OUTPUT_BYTES = 1_000_000  # head+tail kept; the agent truncates further
-WORK_ROOT = "/work"           # extra allowed area besides the repository (e.g. git worktrees)
+WORK_ROOT = "/work"  # extra allowed area besides the repository (e.g. git worktrees)
 
-ROOT = "/app"                 # set from --root
+ROOT = "/app"  # set from --root
 
 
 class PathError(Exception):
@@ -102,7 +103,7 @@ class _BoundedCapture(threading.Thread):
         if self.total <= MAX_OUTPUT_BYTES:
             return bytes(self.head + self.tail)
         return (bytes(self.head) + f"\n\n[... sandbox cut {self.total} bytes of output, "
-                f"middle elided ...]\n\n".encode() + bytes(self.tail))
+                                   f"middle elided ...]\n\n".encode() + bytes(self.tail))
 
 
 def do_exec(command: str, timeout_s, cwd: str) -> dict:
@@ -121,7 +122,7 @@ def do_exec(command: str, timeout_s, cwd: str) -> dict:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
-        start_new_session=True,   # so a timeout can kill the whole group
+        start_new_session=True,  # so a timeout can kill the whole group
     )
     capture = _BoundedCapture(proc.stdout)
     capture.start()
@@ -135,7 +136,7 @@ def do_exec(command: str, timeout_s, cwd: str) -> dict:
         except ProcessLookupError:
             pass
         proc.wait()
-    capture.join(timeout=10)      # the pipe closes once every writer is dead
+    capture.join(timeout=10)  # the pipe closes once every writer is dead
     return {
         "output": capture.result().decode("utf-8", errors="replace"),
         "exit_code": proc.returncode,
@@ -143,15 +144,32 @@ def do_exec(command: str, timeout_s, cwd: str) -> dict:
     }
 
 
-def do_read(path: str, cwd: str) -> dict:
+def do_read(path: str, cwd: str, start_line: int = 1,
+            end_line: int | None = None) -> dict:
+    if type(start_line) is not int or start_line < 1:
+        raise PathError("start_line must be a positive integer")
+    if end_line is not None and (type(end_line) is not int or end_line < start_line):
+        raise PathError("end_line must be an integer >= start_line")
     real = resolve(path, cwd)
     if not os.path.isfile(real):
         raise PathError(f"file not found: {path}")
     try:
-        with open(real, "r", errors="replace") as f:
-            return {"content": f.read()}
+        with open(real, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
     except OSError as e:
         raise PathError(f"could not read {path}: {e}")
+
+    if start_line > len(lines):
+        raise PathError("start_line is beyond the end of the file")
+
+    last_line = min(end_line or len(lines), len(lines))
+    content = "\n".join(
+        f"{line_number}: {lines[line_number - 1]}"
+        for line_number in range(start_line, last_line + 1)
+    )
+    if last_line < len(lines) and end_line is not None and last_line < end_line:
+        content += "\n[More lines available; request the next range.]"
+    return {"content": content}
 
 
 def do_write(path: str, content: str, cwd: str) -> dict:
@@ -161,17 +179,79 @@ def do_write(path: str, content: str, cwd: str) -> dict:
     existed = os.path.isfile(real)
     try:
         os.makedirs(os.path.dirname(real), exist_ok=True)
-        with open(real, "w") as f:
+        with open(real, "w", encoding="utf-8") as f:
             f.write(content)
     except OSError as e:
         raise PathError(f"could not write {path}: {e}")
     return {"existed": existed}
+def do_search(mode: str, query: str, path: str, cwd: str) -> dict:
+    if mode not in {"files", "text"}:
+        raise PathError("mode must be 'files' or 'text'")
+    if not isinstance(query, str) or not query:
+        raise PathError("query must be a non-empty string")
+    real = resolve(path, cwd)
+    if not os.path.exists(real):
+        raise PathError(f"search path does not exist: {path}")
+    if mode == "files" and not os.path.isdir(real):
+        raise PathError("files mode requires a directory")
+
+    def candidates():
+        if os.path.isfile(real):
+            yield real
+            return
+        for directory, directories, files in os.walk(real, followlinks=False):
+            directories[:] = [item for item in directories if item != ".git"]
+            for filename in sorted(files):
+                yield os.path.join(directory, filename)
+
+    matches = []
+    for candidate in candidates():
+        if not os.path.isfile(candidate):
+            continue
+        relative = os.path.relpath(candidate, cwd)
+        if mode == "files":
+            if query in os.path.basename(candidate):
+                matches.append(relative)
+        else:
+            if os.path.getsize(candidate) > 1_000_000:
+                continue
+            try:
+                with open(candidate, "r", encoding="utf-8", errors="replace") as file:
+                    for line_number, line in enumerate(file, start=1):
+                        if query in line:
+                            matches.append(f"{relative}:{line_number}: {line.rstrip()[:500]}")
+                            if len(matches) >= 100:
+                                return {"content": "\n".join(matches) + "\n[Results limited to 100 matches.]"}
+            except OSError:
+                continue
+        if len(matches) >= 100:
+            break
+    return {"content": "\n".join(matches) if matches else "No matches found."}
+
+
+def do_edit(path: str, old_string: str, new_string: str, cwd: str) -> dict:
+    if not isinstance(old_string, str) or not isinstance(new_string, str):
+        raise PathError("old_string and new_string must be strings")
+    real = resolve(path, cwd)
+    if not os.path.isfile(real):
+        raise PathError(f"file not found: {path}")
+    try:
+        with open(real, "r", encoding="utf-8", errors="replace") as file:
+            content = file.read()
+        count = content.count(old_string)
+        if count != 1:
+            raise PathError(f"old_string appeared {count} times; expected exactly once")
+        with open(real, "w", encoding="utf-8") as file:
+            file.write(content.replace(old_string, new_string, 1))
+    except OSError as e:
+        raise PathError(f"could not edit {path}: {e}")
+    return {"path": path, "replaced": True}
 
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "cs2680-sandbox/1"
 
-    def log_message(self, fmt, *args):   # one line per request, to stderr
+    def log_message(self, fmt, *args):  # one line per request, to stderr
         _log(fmt % args)
 
     def _send(self, code: int, payload: dict):
@@ -202,11 +282,25 @@ class Handler(BaseHTTPRequestHandler):
                     raise PathError("missing required argument: command")
                 return self._send(200, do_exec(req["command"], req.get("timeout_s"), cwd))
             if self.path == "/read":
-                return self._send(200, do_read(req.get("path", ""), cwd))
+                return self._send(
+                    200,
+                    do_read(
+                        req.get("path", ""),
+                        cwd,
+                        req.get("start_line", 1),
+                        req.get("end_line"),
+                    ),
+                )
             if self.path == "/write":
                 if "content" not in req:
                     raise PathError("missing required argument: content")
                 return self._send(200, do_write(req.get("path", ""), req["content"], cwd))
+            if self.path == "/search":
+                return self._send(200, do_search(
+                    req.get("mode"), req.get("query"), req.get("path", "."), cwd))
+            if self.path == "/edit":
+                return self._send(200, do_edit(
+                    req.get("path", ""), req.get("old_string"), req.get("new_string"), cwd))
             return self._send(404, {"error": f"unknown route {self.path}"})
         except PathError as e:
             return self._send(400, {"error": str(e)})
