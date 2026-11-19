@@ -30,7 +30,11 @@ def run_agent(problem, workdir, enable_log):
         {
             "role": "system",
             "content": AGENT_SYSTEM_PROMPT.format(workdir=workdir),
-        }, {"role": "user", "content": problem}
+        },
+        {"role": "user", "content": problem
+
+        }
+
     ])
 
     end_reason = "iteration_limit"
@@ -50,7 +54,7 @@ def run_agent(problem, workdir, enable_log):
             })
         completion = client.chat.completions.create(
             model="qwen3.6-35b-a3b",
-            messages=memory.messages,
+            memory.messages,
             tools=[READ_FILE_TOOL,
                    SEARCH_TOOL,
                    EDIT_FILE_TOOL,
@@ -212,9 +216,9 @@ def run_agent(problem, workdir, enable_log):
                     head_length = retained // 2
                     tail_length = retained - head_length
                     result = (
-                        result[:head_length]
-                        + truncation_notice
-                        + result[-tail_length:]
+                            result[:head_length]
+                            + truncation_notice
+                            + result[-tail_length:]
                     )
 
                 if call["name"] == "read_file" and not result.startswith("Error:"):
