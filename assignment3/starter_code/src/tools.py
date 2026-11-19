@@ -67,7 +67,10 @@ class ReadArchivedOutputTool(Tool):
         "description": (
             "Read a complete older tool result that was compacted from conversation memory. "
             "Use the output reference shown as tool_output_####. Without end_line, returns "
-            "the entire archived result."
+            "the entire archived result. The content is historical: the stored output from "
+            "the original call, not a fresh execution. The archived marker line reports "
+            "original_chars: for large results, pass start_line and end_line to fetch only "
+            "the section you need instead of re-adding the whole output to context."
         ),
         "parameters": {"type": "object", "properties": {
             "output_id": {"type": "string", "description": "The tool_output_#### reference."},

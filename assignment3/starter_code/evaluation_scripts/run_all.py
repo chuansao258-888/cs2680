@@ -8,8 +8,13 @@
                   CS2680_BASE_URL: the agent gets http://a3proxy_<run>:3128/v1 (the egress proxy)
   A3_API_UPSTREAM    the API origin the egress proxy forwards to, default https://api.cs2680.com
   A3_API_PATH_PREFIX path inserted before forwarded /v1/... requests, default empty
-  MADSOPT_LIVE_TRACE print model replies and tool activity as the agent runs, default 1
+  MADSOPT_LIVE_TRACE print model reasoning, tool activity, and API timing as the agent runs, default 1
   MADSOPT_LIVE_TRACE_MAX_CHARS  max characters shown for one trace field, default 4000
+  MADSOPT_LIVE_MODEL_OUTPUT  also print model final replies, default 0
+  MADSOPT_LIVE_TOOL_RESULTS  also print successful tool output, default 0
+  MADSOPT_API_RETRIES / MADSOPT_API_BACKOFF_S / MADSOPT_API_BACKOFF_MAX_S
+                  transient API failures (429/5xx/conn) retried with exponential
+                  backoff, defaults 7 / 4 / 60 seconds
 
   --limit N       only the first N tasks can be opened (0 = preflight: start the agent, start
                   and health-check every task's sandbox, check egress, stop)
@@ -490,7 +495,10 @@ def start_infra():
     env = [*[x for v in sorted(os.environ) if v.startswith("CS2680_") and v != "CS2680_BASE_URL"
              for x in ("-e", v)],                                                            # key + model ids
            "-e", "MADSOPT_MAX_ITERATIONS", "-e", "MADSOPT_LIVE_TRACE",
-           "-e", "MADSOPT_LIVE_TRACE_MAX_CHARS",
+           "-e", "MADSOPT_LIVE_TRACE_MAX_CHARS", "-e", "MADSOPT_LIVE_MODEL_OUTPUT",
+           "-e", "MADSOPT_LIVE_TOOL_RESULTS", "-e", "MADSOPT_API_RETRIES",
+           "-e", "MADSOPT_API_BACKOFF_S", "-e", "MADSOPT_API_BACKOFF_MAX_S",
+           "-e", "MADSOPT_PRESERVE_THINKING",
            "-e", f"CS2680_BASE_URL={API_BASE_URL}",     # the egress proxy: the agent's only way to the API
            "-e", f"HOST_ID={host_id}", "-e", "PYTHONDONTWRITEBYTECODE=1"]
     hidden = f"{HOSTLOG}/hidden.json"     # the task lists (instance ids, hidden test names) read as {} in the agent
@@ -511,6 +519,13 @@ def start_infra():
 
 def cleanup():
     stop_live_agent_log()
+    # Sync the agent's traces out of .tasks/trace even when the run was killed:
+    # the container's own post-run cp only happens on a clean exit, and the next
+    # run wipes .tasks. Done inside the container, as the trailing cp does, so
+    # the host never reads agent-writable paths.
+    sh("docker", "exec", AGENT, "sh", "-c",
+       'mkdir -p /madsOpt/madsOpt_logs && cp -r /madsOpt/.tasks/trace/madsOpt_logs/. /madsOpt/madsOpt_logs/ 2>/dev/null || true',
+       check=False)
     sh("docker", "exec", AGENT, "chown", "-R", f"{os.getuid()}:{os.getgid()}", "/madsOpt/.tasks", "/madsOpt/madsOpt_logs", check=False)
     for name, out in ((AGENT, "agent.log"), (PROXY, "proxy.log")):
         r = sh("docker", "logs", name, check=False)
