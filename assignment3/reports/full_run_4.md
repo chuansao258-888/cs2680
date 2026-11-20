@@ -369,7 +369,7 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 ### protonmail/944adbf
 
-24 轮，新建 observeApiError.ts + 自写测试、本地 jest 全绿后收工。致命点在导出形式：hidden 测试用默认导入 `import observeApiError from ...`，模型只给具名导出，模块加载即失败、10 个目标测试全挂。4.4KB 补丁逻辑本身正确，输在未对照任务类型签名逐字校验接口——小文件低覆盖任务对新机制依赖不大。
+24 轮，新建 observeApiError.ts + 自写测试、本地 jest 全绿后收工。致命点是**功能放错仓库位置**：隐藏 gold 测试在仓库根 `tests/observeApiError.test.ts`，模型却把实现与自测都放进子包 `packages/metrics/`；根 jest 工程加载该 TS 报 `Module parse failed: Unexpected token (11:17)` → 0 测试收集 → 10/10 全挂。属代码库结构误判（在错误子项目解题），与批量/分页机制无关；小文件低覆盖任务对新机制依赖不大。
 
 ### qutebrowser/c580ebf
 
@@ -393,10 +393,11 @@ compaction 调用未记录 usage，成本低估可忽略。
 - 根因：模型收尾 it71 跑了 `git add -A` 自查改动，把全部改动暂存进 index；课程提取是 `git add -N . && git diff`（只反映未暂存改动）→ 抓空。此前 it61/it70 还多次 `git stash` 做基线对比。
 - 定性：这是模型用 git 自查的习惯 × harness 只抓未暂存改动的交互失败，不是能力或题面问题（run3 同题未踩是因那次收尾没 `git add`）。通用修法：提示词纪律"编辑留在工作区，勿 git add/stash/commit，harness 自取未暂存改动"。
 
-### 10.2 webclients/944adbf —— 10/10 全挂（补丁非空，真实功能失败）
+### 10.2 webclients/944adbf —— 10/10 全挂（功能放错仓库位置，非导出形式）
 
-- 补丁 4.4KB 非空；模型改 observeApiError 的导入接线后 tsc/eslint/jest 自查通过，但隐藏测试 10/10 全挂，指向导入路径或导出形态改坏使模块整体加载失败。
-- run1/run3 同题曾一次通过（18–24 轮）→ 本轮为随机回归，非新工具所致。
+- 补丁 4.4KB 非空。隐藏 gold 测试位于**仓库根 `tests/observeApiError.test.ts`**，而模型把实现与自测都放进子包 `packages/metrics/`。
+- 评分时根 jest 工程加载该 `.ts` 报 `Module parse failed: Unexpected token (11:17)`（`export type`、`error: any` 等 TS 语法在根工程 babel 配置下未转译）→ 0 个测试被收集 → 10 个 gold 测试全记 missing/失败。模型在 `packages/metrics/tests/` 自建的测试本地全绿，但评分跑的不是那个路径。
+- 定性：**代码库结构误判（在错误的子项目里解题）**，与批量编辑/分页机制无关；run1/run3 同题曾一次通过，属随机回归。
 
 ### 10.3 element-web/5dfde12 (1/61)、qutebrowser/c580ebf (1/202) —— 精确字符串近失
 
