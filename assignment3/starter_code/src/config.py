@@ -8,9 +8,9 @@ import os
 
 
 MAX_ITERATIONS = int(os.getenv("MADSOPT_MAX_ITERATIONS", "100"))
-# The dispatcher permits five live tasks. This subscription supports up to four
-# concurrent agents, so keep the agent-side limit at four.
-MAX_OPEN_TASKS = int(os.getenv("MADSOPT_MAX_OPEN_TASKS", "4"))
+# Two live sandboxes at 4g each plus one unbounded grading container fit the
+# 12GB Docker VM; five live tasks OOM-killed sandboxes mid-run (2026-11-19).
+MAX_OPEN_TASKS = int(os.getenv("MADSOPT_MAX_OPEN_TASKS", "2"))
 
 # Transient upstream failures (rate limits, 5xx, dropped connections) are
 # retried with exponential backoff before the request is given up on.

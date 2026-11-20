@@ -6,6 +6,7 @@ import re
 import sys
 import threading
 import time
+import traceback
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 from . import memory
@@ -176,6 +177,18 @@ def call_model(client, model_id: str, messages: list, logger, iteration: int, **
     return response
 
 
+def _valid_arguments(raw: str) -> str:
+    # The provider rejects histories containing non-JSON function.arguments
+    # (400). The execution path still sees the raw string and reports the parse
+    # error back to the model, so only the history copy is normalized.
+    try:
+        if isinstance(json.loads(raw or "{}"), dict):
+            return raw
+    except ValueError:
+        pass
+    return "{}"
+
+
 def _assistant_message(message, tool_calls: list) -> dict:
     """The history entry for one model turn.
 
@@ -190,7 +203,7 @@ def _assistant_message(message, tool_calls: list) -> dict:
                 "type": "function",
                 "function": {
                     "name": call.function.name,
-                    "arguments": call.function.arguments,
+                    "arguments": _valid_arguments(call.function.arguments),
                 },
             }
             for call in tool_calls
@@ -313,9 +326,14 @@ class Agent:
                         futures,
                         return_when=FIRST_COMPLETED,
                     )
-                    # 让 worker 内部异常在主线程显式暴露
+                    # solve()'s finally already extracts/submits/done()s a crashed
+                    # task; swallow its exception so the remaining tasks still run.
                     for future in done:
-                        future.result()
+                        try:
+                            future.result()
+                        except Exception as error:
+                            _live_line(f"task crashed, continuing with remaining tasks: {error!r}")
+                            traceback.print_exc()
 
     def solve(self, task: dict):
 
