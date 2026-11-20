@@ -70,16 +70,20 @@
 **相对 Full Run 2**（git `a731a16`，指纹 `35f94e0bbf424fb2`）：代码有变更（行为级）。
 提交：
 ```
+afa3045 feat(a3): read_file source pagination and atomic batch edit with replace_all
 68c363f feat(a3): batch compaction with prefix-cache stability, unified config, tools/reports layout
 ```
 
 文件变更：
 ```
-assignment3/starter_code/src/agentic_loop.py |  34 ++-
- assignment3/starter_code/src/config.py       |  94 ++++--
- assignment3/starter_code/src/memory.py       | 413 ++++++++++++++++-----------
- assignment3/starter_code/src/prompts.py      | 191 +++++++------
- 4 files changed, 442 insertions(+), 290 deletions(-)
+assignment3/starter_code/src/agentic_loop.py   |  43 ++-
+ assignment3/starter_code/src/config.py         |  98 ++++--
+ assignment3/starter_code/src/memory.py         | 420 +++++++++++++++----------
+ assignment3/starter_code/src/prompts.py        | 196 ++++++------
+ assignment3/starter_code/src/sandbox.py        |   5 +-
+ assignment3/starter_code/src/sandbox_server.py |  66 ++--
+ assignment3/starter_code/src/tools.py          |  42 ++-
+ 7 files changed, 548 insertions(+), 322 deletions(-)
 ```
 
 
@@ -96,16 +100,20 @@ assignment3/starter_code/src/agentic_loop.py |  34 ++-
 **相对 Full Run 1**（git `a731a16`，指纹 `3da72e34d286f470`）：代码有变更（行为级）。
 提交：
 ```
+afa3045 feat(a3): read_file source pagination and atomic batch edit with replace_all
 68c363f feat(a3): batch compaction with prefix-cache stability, unified config, tools/reports layout
 ```
 
 文件变更：
 ```
-assignment3/starter_code/src/agentic_loop.py |  34 ++-
- assignment3/starter_code/src/config.py       |  94 ++++--
- assignment3/starter_code/src/memory.py       | 413 ++++++++++++++++-----------
- assignment3/starter_code/src/prompts.py      | 191 +++++++------
- 4 files changed, 442 insertions(+), 290 deletions(-)
+assignment3/starter_code/src/agentic_loop.py   |  43 ++-
+ assignment3/starter_code/src/config.py         |  98 ++++--
+ assignment3/starter_code/src/memory.py         | 420 +++++++++++++++----------
+ assignment3/starter_code/src/prompts.py        | 196 ++++++------
+ assignment3/starter_code/src/sandbox.py        |   5 +-
+ assignment3/starter_code/src/sandbox_server.py |  66 ++--
+ assignment3/starter_code/src/tools.py          |  42 ++-
+ 7 files changed, 548 insertions(+), 322 deletions(-)
 ```
 
 
@@ -378,18 +386,16 @@ compaction 调用未记录 usage，成本低估可忽略。
 ### 10.1 qutebrowser/21b426b —— test_repr，第三次逐字节相同的选择
 
 - 补丁 repr 实现与 run8、重跑轮完全一致：`values=list(self._vmap.values())`，而官方测试锁定 gold 的 `vmap=odict_values([...])`。
-- **跨两个代码版本、三次尝试零变化 → 确定性偏差实锤**：V6 上下文重设计（含压缩后状态块）也未能改变该选择。唯一已知有效路径是近似失败重试（回喂失败测试名/断言差异）。
+- 当时判定为跨两个代码版本的确定性偏差；Full Run 4 用批量编辑工具后第四次尝试改写为 `vmap=self._vmap.values()` 并通过，修正为"确定性仅在工具面不变时成立"。
 
 ### 10.2 ansible/83909bfa —— test_api_no_auth_but_required，措辞掷硬币再次落错
 
 - 本轮文案：`"...A token can be set with --token, or in the token file at %s..."`（与 run8 同风格）；重跑轮选了保留原骨架的 `"--api-key or at {path}"` 并通过。
-- 三样本 1 中 2 → 措辞选择确认为随机事件，题面自相矛盾（problem_statement 指向 URL 暗示、requirements 明文 --token）使模型无稳定锚点。
+- 措辞选择确认为随机事件，题面自相矛盾（problem_statement 指向 URL 暗示、requirements 明文 --token）使模型无稳定锚点。
 
 ### 10.3 ansible/a26c325 —— test_Request.py::test_open_url，相对基准的回归
 
-- 必过集合 42 项中仅此 1 项 AssertionError（重试 3 次仍挂）；基准轮 run8 曾 0/42 通过。
-- **根因（读本轮 trace 确认）**：use_netrc 贯通本身完整正确（Request/open/fetch_url/url_get/uri/get_url/url-lookup 七层，30 次编辑）；失败在调用位置的取舍——spec 写"在创建 Request 时转发该值"，agent 反复比较后选择 `Request(use_netrc=use_netrc).open(...)` 并自认"两种解释都行，这是最安全的"，而 gold 的 test_open_url 断言 `open()` 调用 kwargs 含 use_netrc（upstream 写法 `.open(..., use_netrc=...)`）。属规格字面话与 upstream 惯例的又一次精确字符串掷硬币，与压缩改动无关。
-- 归因结论：本轮三个失败全部是精确字符串级决策失误（两处 upstream 记忆缺失、一处 spec 字面解读），无一由 V6 压缩引起；V6 的行为影响限于成本/时延面。
+- 必过集合 42 项中仅此 1 项 AssertionError；use_netrc 七层贯通完整，失败在调用位置：agent 选 `Request(use_netrc=..).open(..)` 并自认"两种解释都行"，gold 断言 upstream 的 `.open(.., use_netrc=..)`。属规格字面话与 upstream 惯例的精确字符串掷硬币，与压缩改动无关。
 
 ## 11. 统计方法说明
 

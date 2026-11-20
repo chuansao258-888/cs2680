@@ -69,25 +69,32 @@ assignment3/starter_code/src/agentic_loop.py
 **相对 Full Run 1**（git `a731a16`，指纹 `3da72e34d286f470`）：代码有变更但不影响 agent 行为（仅 run_end 原因标注（iteration_limit/no_choices），属 trace 上报层，不参与决策）。
 提交：
 ```
+afa3045 feat(a3): read_file source pagination and atomic batch edit with replace_all
 68c363f feat(a3): batch compaction with prefix-cache stability, unified config, tools/reports layout
 ```
 
 文件变更：
 ```
-assignment3/starter_code/src/agentic_loop.py |  34 ++-
- assignment3/starter_code/src/config.py       |  94 ++++--
- assignment3/starter_code/src/memory.py       | 413 ++++++++++++++++-----------
- assignment3/starter_code/src/prompts.py      | 191 +++++++------
- 4 files changed, 442 insertions(+), 290 deletions(-)
+assignment3/starter_code/src/agentic_loop.py   |  43 ++-
+ assignment3/starter_code/src/config.py         |  98 ++++--
+ assignment3/starter_code/src/memory.py         | 420 +++++++++++++++----------
+ assignment3/starter_code/src/prompts.py        | 196 ++++++------
+ assignment3/starter_code/src/sandbox.py        |   5 +-
+ assignment3/starter_code/src/sandbox_server.py |  66 ++--
+ assignment3/starter_code/src/tools.py          |  42 ++-
+ 7 files changed, 548 insertions(+), 322 deletions(-)
 ```
 
 未提交修改（相对该参照提交）：
 ```
-assignment3/starter_code/src/agentic_loop.py |  34 ++++--
- assignment3/starter_code/src/config.py       |  94 +++++++++++----
- assignment3/starter_code/src/memory.py       | 165 +++++++++++++++++++++------
- assignment3/starter_code/src/prompts.py      |   3 +-
- 4 files changed, 224 insertions(+), 72 deletions(-)
+assignment3/starter_code/src/agentic_loop.py   |  43 +++++--
+ assignment3/starter_code/src/config.py         |  98 ++++++++++----
+ assignment3/starter_code/src/memory.py         | 172 +++++++++++++++++++------
+ assignment3/starter_code/src/prompts.py        |  12 +-
+ assignment3/starter_code/src/sandbox.py        |   5 +-
+ assignment3/starter_code/src/sandbox_server.py |  66 +++++++---
+ assignment3/starter_code/src/tools.py          |  42 ++++--
+ 7 files changed, 332 insertions(+), 106 deletions(-)
 ```
 
 

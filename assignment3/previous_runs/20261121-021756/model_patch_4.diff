@@ -1,0 +1,174 @@
+diff --git a/src/components/views/settings/devices/useOwnDevices.ts b/src/components/views/settings/devices/useOwnDevices.ts
+index 58f6cef43d..9c6510856e 100644
+--- a/src/components/views/settings/devices/useOwnDevices.ts
++++ b/src/components/views/settings/devices/useOwnDevices.ts
+@@ -35,7 +35,7 @@ import { CryptoEvent } from "matrix-js-sdk/src/crypto";
+ 
+ import MatrixClientContext from "../../../../contexts/MatrixClientContext";
+ import { _t } from "../../../../languageHandler";
+-import { getDeviceClientInformation } from "../../../../utils/device/clientInformation";
++import { getDeviceClientInformation, pruneClientInformation } from "../../../../utils/device/clientInformation";
+ import { DevicesDictionary, ExtendedDevice, ExtendedDeviceAppInfo } from "./types";
+ import { useEventEmitter } from "../../../../hooks/useEventEmitter";
+ import { parseUserAgent } from "../../../../utils/device/parseUserAgent";
+@@ -116,8 +116,8 @@ export type DevicesState = {
+ export const useOwnDevices = (): DevicesState => {
+     const matrixClient = useContext(MatrixClientContext);
+ 
+-    const currentDeviceId = matrixClient.getDeviceId();
+-    const userId = matrixClient.getUserId();
++    const currentDeviceId = matrixClient.getDeviceId()!;
++    const userId = matrixClient.getUserId()!;
+ 
+     const [devices, setDevices] = useState<DevicesState["devices"]>({});
+     const [pushers, setPushers] = useState<DevicesState["pushers"]>([]);
+@@ -138,14 +138,12 @@ export const useOwnDevices = (): DevicesState => {
+     const refreshDevices = useCallback(async () => {
+         setIsLoadingDeviceList(true);
+         try {
+-            // realistically we should never hit this
+-            // but it satisfies types
+-            if (!userId) {
+-                throw new Error("Cannot fetch devices without user id");
+-            }
+             const devices = await fetchDevicesWithVerification(matrixClient, userId);
+             setDevices(devices);
+ 
++            // remove client information of devices that no longer exist
++            pruneClientInformation(Object.keys(devices), matrixClient);
++
+             const { pushers } = await matrixClient.getPushers();
+             setPushers(pushers);
+ 
+diff --git a/src/i18n/strings/en_EN.json b/src/i18n/strings/en_EN.json
+index 952dba4590..cbefb01830 100644
+--- a/src/i18n/strings/en_EN.json
++++ b/src/i18n/strings/en_EN.json
+@@ -650,6 +650,8 @@
+     "You are already recording a voice broadcast. Please end your current voice broadcast to start a new one.": "You are already recording a voice broadcast. Please end your current voice broadcast to start a new one.",
+     "You don't have the required permissions to start a voice broadcast in this room. Contact a room administrator to upgrade your permissions.": "You don't have the required permissions to start a voice broadcast in this room. Contact a room administrator to upgrade your permissions.",
+     "Someone else is already recording a voice broadcast. Wait for their voice broadcast to end to start a new one.": "Someone else is already recording a voice broadcast. Wait for their voice broadcast to end to start a new one.",
++    "Connection error": "Connection error",
++    "Unfortunately we're unable to start a recording right now. Please try again later.": "Unfortunately we're unable to start a recording right now. Please try again later.",
+     "Can’t start a call": "Can’t start a call",
+     "You can’t start a call as you are currently recording a live broadcast. Please end your live broadcast in order to start a call.": "You can’t start a call as you are currently recording a live broadcast. Please end your live broadcast in order to start a call.",
+     "You ended a <a>voice broadcast</a>": "You ended a <a>voice broadcast</a>",
+diff --git a/src/utils/device/clientInformation.ts b/src/utils/device/clientInformation.ts
+index e97135ab1f..b742080ce2 100644
+--- a/src/utils/device/clientInformation.ts
++++ b/src/utils/device/clientInformation.ts
+@@ -40,8 +40,9 @@ const formatUrl = (): string | undefined => {
+     ].join("");
+ };
+ 
+-export const getClientInformationEventType = (deviceId: string): string =>
+-    `io.element.matrix_client_information.${deviceId}`;
++const CLIENT_INFORMATION_PREFIX = "io.element.matrix_client_information.";
++
++export const getClientInformationEventType = (deviceId: string): string => CLIENT_INFORMATION_PREFIX + deviceId;
+ 
+ /**
+  * Record extra client information for the current device
+@@ -84,6 +85,42 @@ export const removeClientInformation = async (matrixClient: MatrixClient): Promi
+ const sanitizeContentString = (value: unknown): string | undefined =>
+     value && typeof value === "string" ? value : undefined;
+ 
++/**
++ * Collect the event types of all known client information account data events
++ */
++const getClientInformationEventTypes = (matrixClient: MatrixClient): string[] => {
++    // account data is stored by event type in the client store (record or map depending on the store)
++    const accountData = matrixClient.store?.accountData as unknown as Record<string, unknown> | Map<string, unknown>;
++
++    const eventTypes: string[] = [];
++    if (accountData instanceof Map) {
++        for (const eventType of accountData.keys()) eventTypes.push(eventType as string);
++    } else if (accountData && typeof accountData === "object") {
++        eventTypes.push(...Object.keys(accountData));
++    }
++
++    return eventTypes.filter((eventType) => eventType.startsWith(CLIENT_INFORMATION_PREFIX));
++};
++
++/**
++ * Remove client information for devices that no longer exist
++ * @param validDeviceIds device ids of the devices that still exist
++ * @param matrixClient
++ */
++export const pruneClientInformation = (validDeviceIds: string[], matrixClient: MatrixClient): void => {
++    // do not prune anything while the devices are not loaded yet
++    if (!validDeviceIds.length) return;
++
++    for (const eventType of getClientInformationEventTypes(matrixClient)) {
++        // the device id is the last part of the event type
++        const deviceId = eventType.substring(CLIENT_INFORMATION_PREFIX.length);
++
++        if (!validDeviceIds.includes(deviceId)) {
++            matrixClient.deleteAccountData(eventType);
++        }
++    }
++};
++
+ export const getDeviceClientInformation = (matrixClient: MatrixClient, deviceId: string): DeviceClientInformation => {
+     const event = matrixClient.getAccountData(getClientInformationEventType(deviceId));
+ 
+diff --git a/src/voice-broadcast/models/VoiceBroadcastRecording.ts b/src/voice-broadcast/models/VoiceBroadcastRecording.ts
+index e0627731eb..3b29f9368d 100644
+--- a/src/voice-broadcast/models/VoiceBroadcastRecording.ts
++++ b/src/voice-broadcast/models/VoiceBroadcastRecording.ts
+@@ -60,7 +60,7 @@ export class VoiceBroadcastRecording
+ {
+     private state: VoiceBroadcastInfoState;
+     private recorder: VoiceBroadcastRecorder;
+-    private sequence = 1;
++    private sequence = 0;
+     private dispatcherRef: string;
+     private chunkEvents = new VoiceBroadcastChunkEvents();
+     private chunkRelationHelper: RelationsHelper;
+@@ -268,7 +268,7 @@ export class VoiceBroadcastRecording
+             event_id: this.infoEvent.getId(),
+         };
+         content["io.element.voice_broadcast_chunk"] = {
+-            sequence: this.sequence++,
++            sequence: ++this.sequence,
+         };
+ 
+         await this.client.sendMessage(this.infoEvent.getRoomId(), content);
+diff --git a/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx b/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
+index ffc525006d..0195853a4f 100644
+--- a/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
++++ b/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
+@@ -16,12 +16,21 @@ limitations under the License.
+ 
+ import React from "react";
+ import { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
++import { SyncState } from "matrix-js-sdk/src/sync";
+ 
+ import { hasRoomLiveVoiceBroadcast, VoiceBroadcastInfoEventType, VoiceBroadcastRecordingsStore } from "..";
+ import InfoDialog from "../../components/views/dialogs/InfoDialog";
+ import { _t } from "../../languageHandler";
+ import Modal from "../../Modal";
+ 
++const showConnectionErrorDialog = () => {
++    Modal.createDialog(InfoDialog, {
++        title: _t("Connection error"),
++        description: <p>{_t("Unfortunately we're unable to start a recording right now. Please try again later.")}</p>,
++        hasCloseButton: true,
++    });
++};
++
+ const showAlreadyRecordingDialog = () => {
+     Modal.createDialog(InfoDialog, {
+         title: _t("Can't start a new voice broadcast"),
+@@ -72,6 +81,11 @@ export const checkVoiceBroadcastPreConditions = async (
+     client: MatrixClient,
+     recordingsStore: VoiceBroadcastRecordingsStore,
+ ): Promise<boolean> => {
++    if (client.getSyncState() === SyncState.Error) {
++        showConnectionErrorDialog();
++        return false;
++    }
++
+     if (recordingsStore.getCurrent()) {
+         showAlreadyRecordingDialog();
+         return false;

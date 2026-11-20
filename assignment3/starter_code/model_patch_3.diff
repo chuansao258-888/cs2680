@@ -1,0 +1,412 @@
+diff --git a/lib/events/dynamoevents/dynamoevents.go b/lib/events/dynamoevents/dynamoevents.go
+index 4e777e563..97ff71b89 100644
+--- a/lib/events/dynamoevents/dynamoevents.go
++++ b/lib/events/dynamoevents/dynamoevents.go
+@@ -135,6 +135,7 @@ type event struct {
+ 	EventIndex     int64
+ 	EventType      string
+ 	CreatedAt      int64
++	CreatedAtDate  string
+ 	Expires        *int64 `json:"Expires,omitempty"`
+ 	Fields         string
+ 	EventNamespace string
+@@ -156,10 +157,25 @@ const (
+ 	// keyCreatedAt identifies created at key
+ 	keyCreatedAt = "CreatedAt"
+ 
++	// keyDate identifies the normalized (ISO 8601 "yyyy-mm-dd") date of the
++	// event, it is used as the hash key of indexTimeSearchV2
++	keyDate = "CreatedAtDate"
++
++	// iso8601DateFormat is the layout used to format the date of an event. It
++	// is the ISO 8601 date format (yyyy-mm-dd), a simple date format keeps the
++	// number of distinct values (and therefore the size of a partition) low.
++	iso8601DateFormat = "2006-01-02"
++
+ 	// indexTimeSearch is a secondary global index that allows searching
+ 	// of the events by time
+ 	indexTimeSearch = "timesearch"
+ 
++	// indexTimeSearchV2 is a secondary global index that allows searching
++	// of the events by day. Unlike indexTimeSearch it is partitioned by the
++	// normalized event date, which spreads the load over many partitions and
++	// allows efficient queries over a range of days.
++	indexTimeSearchV2 = "timesearchV2"
++
+ 	// DefaultReadCapacityUnits specifies default value for read capacity units
+ 	DefaultReadCapacityUnits = 10
+ 
+@@ -217,7 +233,21 @@ func New(ctx context.Context, cfg Config) (*Log, error) {
+ 	}
+ 	switch ts {
+ 	case tableStatusOK:
+-		break
++		// The table already exists, but it might have been created before the
++		// indexTimeSearchV2 index was introduced: add the missing index and
++		// backfill the normalized date attribute of the stored events.
++		exists, err := b.indexExists(b.Tablename, indexTimeSearchV2)
++		if err != nil {
++			return nil, trace.Wrap(err)
++		}
++		if !exists {
++			if err := b.updateTable(b.Tablename); err != nil {
++				return nil, trace.Wrap(err)
++			}
++			if err := b.migrateDateAttribute(ctx); err != nil {
++				return nil, trace.Wrap(err)
++			}
++		}
+ 	case tableStatusMissing:
+ 		err = b.createTable(b.Tablename)
+ 	case tableStatusNeedsMigration:
+@@ -298,6 +328,7 @@ func (l *Log) EmitAuditEvent(ctx context.Context, in events.AuditEvent) error {
+ 		EventType:      in.GetType(),
+ 		EventNamespace: defaults.Namespace,
+ 		CreatedAt:      in.GetTime().Unix(),
++		CreatedAtDate:  in.GetTime().UTC().Format(iso8601DateFormat),
+ 		Fields:         string(data),
+ 	}
+ 	l.setExpiry(&e)
+@@ -344,6 +375,7 @@ func (l *Log) EmitAuditEventLegacy(ev events.Event, fields events.EventFields) e
+ 		EventType:      fields.GetString(events.EventType),
+ 		EventNamespace: defaults.Namespace,
+ 		CreatedAt:      created.Unix(),
++		CreatedAtDate:  created.UTC().Format(iso8601DateFormat),
+ 		Fields:         string(data),
+ 	}
+ 	l.setExpiry(&e)
+@@ -392,6 +424,7 @@ func (l *Log) PostSessionSlice(slice events.SessionSlice) error {
+ 			EventType:      chunk.EventType,
+ 			EventIndex:     chunk.EventIndex,
+ 			CreatedAt:      time.Unix(0, chunk.Time).In(time.UTC).Unix(),
++			CreatedAtDate:  time.Unix(0, chunk.Time).UTC().Format(iso8601DateFormat),
+ 			Fields:         string(data),
+ 		}
+ 		l.setExpiry(&event)
+@@ -479,6 +512,27 @@ func (l *Log) GetSessionEvents(namespace string, sid session.ID, after int, inlc
+ 	return values, nil
+ }
+ 
++// daysBetween returns the inclusive list of ISO 8601 ("yyyy-mm-dd") dates
++// between the given from and to values, in ascending order. The dates are
++// normalized to UTC and every day of the range is returned exactly once,
++// including the days the range starts and ends on.
++func daysBetween(from, to time.Time) []string {
++	var days []string
++	fromUTC := from.UTC()
++	toUTC := to.UTC()
++	if toUTC.Before(fromUTC) {
++		return days
++	}
++
++	day := time.Date(fromUTC.Year(), fromUTC.Month(), fromUTC.Day(), 0, 0, 0, 0, time.UTC)
++	lastDay := time.Date(toUTC.Year(), toUTC.Month(), toUTC.Day(), 0, 0, 0, 0, time.UTC)
++	for !day.After(lastDay) {
++		days = append(days, day.Format(iso8601DateFormat))
++		day = day.AddDate(0, 0, 1)
++	}
++	return days
++}
++
+ // SearchEvents is a flexible way to find  The format of a query string
+ // depends on the implementing backend. A recommended format is urlencoded
+ // (good enough for Lucene/Solr)
+@@ -500,74 +554,81 @@ func (l *Log) SearchEvents(fromUTC, toUTC time.Time, filter string, limit int) (
+ 	doFilter := len(eventFilter) > 0
+ 
+ 	var values []events.EventFields
+-	query := "EventNamespace = :eventNamespace AND CreatedAt BETWEEN :start and :end"
+-	attributes := map[string]interface{}{
+-		":eventNamespace": defaults.Namespace,
+-		":start":          fromUTC.Unix(),
+-		":end":            toUTC.Unix(),
+-	}
+-	attributeValues, err := dynamodbattribute.MarshalMap(attributes)
+-	if err != nil {
+-		return nil, trace.Wrap(err)
+-	}
+ 
+-	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
+-	var total int
+-
+-	// Because the maximum size of the dynamo db response size is 900K according to documentation,
+-	// we arbitrary limit the total size to 100MB to prevent runaway loops.
+-	for pageCount := 0; pageCount < 100; pageCount++ {
+-		input := dynamodb.QueryInput{
+-			KeyConditionExpression:    aws.String(query),
+-			TableName:                 aws.String(l.Tablename),
+-			ExpressionAttributeValues: attributeValues,
+-			IndexName:                 aws.String(indexTimeSearch),
+-			ExclusiveStartKey:         lastEvaluatedKey,
++	// The events are partitioned by the normalized date they were created at,
++	// so the search is performed as one query per day of the requested range.
++	for _, day := range daysBetween(fromUTC, toUTC) {
++		query := keyDate + " = :date AND " + keyCreatedAt + " BETWEEN :start and :end"
++		attributes := map[string]interface{}{
++			":date":  day,
++			":start": fromUTC.Unix(),
++			":end":   toUTC.Unix(),
+ 		}
+-		start := time.Now()
+-		out, err := l.svc.Query(&input)
++		attributeValues, err := dynamodbattribute.MarshalMap(attributes)
+ 		if err != nil {
+ 			return nil, trace.Wrap(err)
+ 		}
+-		g.WithFields(log.Fields{"duration": time.Since(start), "items": len(out.Items)}).Debugf("Query completed.")
+ 
+-		for _, item := range out.Items {
+-			var e event
+-			if err := dynamodbattribute.UnmarshalMap(item, &e); err != nil {
+-				return nil, trace.BadParameter("failed to unmarshal event for %v", err)
++		var lastEvaluatedKey map[string]*dynamodb.AttributeValue
++		// Because the maximum size of the dynamo db response size is 900K according to documentation,
++		// we arbitrary limit the total size to 100MB to prevent runaway loops.
++		for pageCount := 0; pageCount < 100; pageCount++ {
++			input := dynamodb.QueryInput{
++				KeyConditionExpression:    aws.String(query),
++				TableName:                 aws.String(l.Tablename),
++				ExpressionAttributeValues: attributeValues,
++				IndexName:                 aws.String(indexTimeSearchV2),
++				ExclusiveStartKey:         lastEvaluatedKey,
+ 			}
+-			var fields events.EventFields
+-			data := []byte(e.Fields)
+-			if err := json.Unmarshal(data, &fields); err != nil {
+-				return nil, trace.BadParameter("failed to unmarshal event %v", err)
++			start := time.Now()
++			out, err := l.svc.Query(&input)
++			if err != nil {
++				return nil, trace.Wrap(err)
+ 			}
+-			var accepted bool
+-			for i := range eventFilter {
+-				if fields.GetString(events.EventType) == eventFilter[i] {
+-					accepted = true
+-					break
++			g.WithFields(log.Fields{"duration": time.Since(start), "items": len(out.Items)}).Debugf("Query completed.")
++
++			for _, item := range out.Items {
++				var e event
++				if err := dynamodbattribute.UnmarshalMap(item, &e); err != nil {
++					return nil, trace.BadParameter("failed to unmarshal event for %v", err)
+ 				}
+-			}
+-			if accepted || !doFilter {
+-				values = append(values, fields)
+-				total++
+-				if limit > 0 && total >= limit {
+-					break
++				var fields events.EventFields
++				data := []byte(e.Fields)
++				if err := json.Unmarshal(data, &fields); err != nil {
++					return nil, trace.BadParameter("failed to unmarshal event %v", err)
++				}
++				var accepted bool
++				for i := range eventFilter {
++					if fields.GetString(events.EventType) == eventFilter[i] {
++						accepted = true
++						break
++					}
++				}
++				if accepted || !doFilter {
++					values = append(values, fields)
+ 				}
+ 			}
+-		}
+ 
+-		// AWS returns a `lastEvaluatedKey` in case the response is truncated, i.e. needs to be fetched with
+-		// multiple requests. According to their documentation, the final response is signaled by not setting
+-		// this value - therefore we use it as our break condition.
+-		lastEvaluatedKey = out.LastEvaluatedKey
+-		if len(lastEvaluatedKey) == 0 {
+-			sort.Sort(events.ByTimeAndIndex(values))
+-			return values, nil
++			// AWS returns a `lastEvaluatedKey` in case the response is truncated, i.e. needs to be fetched with
++			// multiple requests. According to their documentation, the final response is signaled by not setting
++			// this value - therefore we use it as our break condition.
++			lastEvaluatedKey = out.LastEvaluatedKey
++			if len(lastEvaluatedKey) == 0 {
++				break
++			}
++			if limit > 0 && len(values) >= limit {
++				break
++			}
++		}
++		if limit > 0 && len(values) >= limit {
++			break
+ 		}
+ 	}
+ 
+-	g.Error("DynamoDB response size exceeded limit.")
++	sort.Sort(events.ByTimeAndIndex(values))
++	if limit > 0 && len(values) > limit {
++		values = values[:limit]
++	}
+ 	return values, nil
+ }
+ 
+@@ -610,6 +671,128 @@ func (l *Log) turnOnTimeToLive() error {
+ 	return convertError(err)
+ }
+ 
++// indexExists returns whether the given table has a global secondary index
++// with the given name.
++func (l *Log) indexExists(tableName, indexName string) (bool, error) {
++	out, err := l.svc.DescribeTable(&dynamodb.DescribeTableInput{
++		TableName: aws.String(tableName),
++	})
++	if err != nil {
++		return false, trace.Wrap(convertError(err))
++	}
++	if out == nil || out.Table == nil {
++		return false, nil
++	}
++	for _, index := range out.Table.GlobalSecondaryIndexes {
++		if index != nil && aws.StringValue(index.IndexName) == indexName {
++			return true, nil
++		}
++	}
++	return false, nil
++}
++
++// updateTable applies the current schema to an already existing table, i.e.
++// adds the global secondary indexes the table is missing.
++func (l *Log) updateTable(tableName string) error {
++	provisionedThroughput := dynamodb.ProvisionedThroughput{
++		ReadCapacityUnits:  aws.Int64(l.ReadCapacityUnits),
++		WriteCapacityUnits: aws.Int64(l.WriteCapacityUnits),
++	}
++	_, err := l.svc.UpdateTable(&dynamodb.UpdateTableInput{
++		TableName: aws.String(tableName),
++		AttributeDefinitions: []*dynamodb.AttributeDefinition{
++			{
++				AttributeName: aws.String(keyDate),
++				AttributeType: aws.String("S"),
++			},
++		},
++		GlobalSecondaryIndexUpdates: []*dynamodb.GlobalSecondaryIndexUpdate{
++			{
++				Create: &dynamodb.CreateGlobalSecondaryIndexAction{
++					IndexName: aws.String(indexTimeSearchV2),
++					KeySchema: []*dynamodb.KeySchemaElement{
++						{
++							AttributeName: aws.String(keyDate),
++							KeyType:       aws.String("HASH"),
++						},
++						{
++							AttributeName: aws.String(keyCreatedAt),
++							KeyType:       aws.String("RANGE"),
++						},
++					},
++					Projection: &dynamodb.Projection{
++						ProjectionType: aws.String("ALL"),
++					},
++					ProvisionedThroughput: &provisionedThroughput,
++				},
++			},
++		},
++	})
++	if err != nil {
++		return trace.Wrap(err)
++	}
++	// Creating a global secondary index is an asynchronous operation, DynamoDB
++	// populates the index from the items already stored in the table.
++	log.Infof("Index %q is being created on table %q", indexTimeSearchV2, tableName)
++	return nil
++}
++
++// migrateDateAttribute backfills the normalized (ISO 8601 "yyyy-mm-dd") date
++// attribute on the events that were emitted before the attribute was
++// introduced. It scans over the whole table and updates every item, so that
++// all events - not only the ones emitted after the upgrade - can be found via
++// the date based search of indexTimeSearchV2.
++func (l *Log) migrateDateAttribute(ctx context.Context) error {
++	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
++	for {
++		select {
++		case <-ctx.Done():
++			return trace.Wrap(ctx.Err())
++		default:
++		}
++
++		input := dynamodb.ScanInput{
++			TableName:         aws.String(l.Tablename),
++			ExclusiveStartKey: lastEvaluatedKey,
++		}
++		out, err := l.svc.ScanWithContext(ctx, &input)
++		if err != nil {
++			return trace.Wrap(convertError(err))
++		}
++
++		for _, item := range out.Items {
++			var e event
++			if err := dynamodbattribute.UnmarshalMap(item, &e); err != nil {
++				return trace.BadParameter("failed to unmarshal event: %v", err)
++			}
++			date := time.Unix(e.CreatedAt, 0).UTC().Format(iso8601DateFormat)
++			_, err := l.svc.UpdateItemWithContext(ctx, &dynamodb.UpdateItemInput{
++				TableName: aws.String(l.Tablename),
++				Key: map[string]*dynamodb.AttributeValue{
++					keySessionID:  item[keySessionID],
++					keyEventIndex: item[keyEventIndex],
++				},
++				UpdateExpression: aws.String("SET " + keyDate + " = :date"),
++				ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
++					":date": {
++						S: aws.String(date),
++					},
++				},
++			})
++			if err != nil {
++				return trace.Wrap(convertError(err))
++			}
++		}
++
++		// AWS returns a `lastEvaluatedKey` in case the scan has not finished -
++		// the last page of a scan is signaled by not setting this value.
++		lastEvaluatedKey = out.LastEvaluatedKey
++		if len(lastEvaluatedKey) == 0 {
++			return nil
++		}
++	}
++}
++
+ // getTableStatus checks if a given table exists
+ func (l *Log) getTableStatus(tableName string) (tableStatus, error) {
+ 	_, err := l.svc.DescribeTable(&dynamodb.DescribeTableInput{
+@@ -653,6 +836,10 @@ func (l *Log) createTable(tableName string) error {
+ 			AttributeName: aws.String(keyCreatedAt),
+ 			AttributeType: aws.String("N"),
+ 		},
++		{
++			AttributeName: aws.String(keyDate),
++			AttributeType: aws.String("S"),
++		},
+ 	}
+ 	elems := []*dynamodb.KeySchemaElement{
+ 		{
+@@ -687,6 +874,23 @@ func (l *Log) createTable(tableName string) error {
+ 				},
+ 				ProvisionedThroughput: &provisionedThroughput,
+ 			},
++			{
++				IndexName: aws.String(indexTimeSearchV2),
++				KeySchema: []*dynamodb.KeySchemaElement{
++					{
++						AttributeName: aws.String(keyDate),
++						KeyType:       aws.String("HASH"),
++					},
++					{
++						AttributeName: aws.String(keyCreatedAt),
++						KeyType:       aws.String("RANGE"),
++					},
++				},
++				Projection: &dynamodb.Projection{
++					ProjectionType: aws.String("ALL"),
++				},
++				ProvisionedThroughput: &provisionedThroughput,
++			},
+ 		},
+ 	}
+ 	_, err := l.svc.CreateTable(&c)
