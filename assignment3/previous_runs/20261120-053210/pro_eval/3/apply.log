@@ -1,0 +1,3 @@
+Checking patch lib/events/dynamoevents/dynamoevents.go...
+Applied patch lib/events/dynamoevents/dynamoevents.go cleanly.
+apply_rc=0

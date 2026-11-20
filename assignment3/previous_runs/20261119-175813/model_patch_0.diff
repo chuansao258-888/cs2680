@@ -1,0 +1,10 @@
+diff --git a/openlibrary/catalog/add_book/load_book.py b/openlibrary/catalog/add_book/load_book.py
+index 8dcf682ec..4b138c0fc 100644
+--- a/openlibrary/catalog/add_book/load_book.py
++++ b/openlibrary/catalog/add_book/load_book.py
+@@ -1,4 +1,5 @@
+ from typing import Any, Final
++import re
+ import web
+ from openlibrary.catalog.utils import flip_name, author_dates_match, key_int
+ 

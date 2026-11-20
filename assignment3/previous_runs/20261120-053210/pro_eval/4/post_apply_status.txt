@@ -1,0 +1,7 @@
+ M src/components/views/settings/devices/useOwnDevices.ts
+ M src/utils/device/clientInformation.ts
+ M src/voice-broadcast/models/VoiceBroadcastRecording.ts
+ M src/voice-broadcast/utils/setUpVoiceBroadcastPreRecording.ts
+ M src/voice-broadcast/utils/startNewVoiceBroadcastRecording.ts
+ M test/voice-broadcast/models/VoiceBroadcastRecording-test.ts
+?? src/voice-broadcast/utils/showConnectionErrorDialog.tsx

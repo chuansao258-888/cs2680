@@ -18,3 +18,4 @@ __pycache__/
 # Backup of the original assignment2 Git metadata
 /.assignment2-git-backup/
 assignment2/.git-empty-backup/
+assignment3/.cache/

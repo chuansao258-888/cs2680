@@ -1,0 +1,15 @@
+{"kind": "chat", "iteration": 0, "model_id": "qwen3.8-flash", "latency_s": 2.64, "prompt_tokens": 2627, "completion_tokens": 79, "cached_tokens": 1024}
+{"kind": "chat", "iteration": 1, "model_id": "qwen3.8-flash", "latency_s": 1.96, "prompt_tokens": 2951, "completion_tokens": 42, "cached_tokens": 2048}
+{"kind": "chat", "iteration": 2, "model_id": "qwen3.8-flash", "latency_s": 3.5, "prompt_tokens": 8118, "completion_tokens": 110, "cached_tokens": 2048}
+{"kind": "chat", "iteration": 3, "model_id": "qwen3.8-flash", "latency_s": 6.21, "prompt_tokens": 9072, "completion_tokens": 297, "cached_tokens": 7168}
+{"kind": "chat", "iteration": 4, "model_id": "qwen3.8-flash", "latency_s": 4.0, "prompt_tokens": 9721, "completion_tokens": 172, "cached_tokens": 8960}
+{"kind": "chat", "iteration": 5, "model_id": "qwen3.8-flash", "latency_s": 3.22, "prompt_tokens": 12530, "completion_tokens": 71, "cached_tokens": 9216}
+{"kind": "chat", "iteration": 6, "model_id": "qwen3.8-flash", "latency_s": 7.4, "prompt_tokens": 19514, "completion_tokens": 300, "cached_tokens": 12288}
+{"kind": "chat", "iteration": 7, "model_id": "qwen3.8-flash", "latency_s": 21.66, "prompt_tokens": 22593, "completion_tokens": 1313, "cached_tokens": 19456}
+{"kind": "chat", "iteration": 8, "model_id": "qwen3.8-flash", "latency_s": 49.53, "prompt_tokens": 24824, "completion_tokens": 3633, "cached_tokens": 22528}
+{"kind": "chat", "iteration": 9, "model_id": "qwen3.8-flash", "latency_s": 10.14, "prompt_tokens": 28548, "completion_tokens": 559, "cached_tokens": 24576}
+{"kind": "chat", "iteration": 10, "model_id": "qwen3.8-flash", "latency_s": 5.14, "prompt_tokens": 24504, "completion_tokens": 176, "cached_tokens": 2048}
+{"kind": "chat", "iteration": 11, "model_id": "qwen3.8-flash", "latency_s": 5.09, "prompt_tokens": 24501, "completion_tokens": 80, "cached_tokens": 3072}
+{"kind": "chat", "iteration": 12, "model_id": "qwen3.8-flash", "latency_s": 8.46, "prompt_tokens": 26289, "completion_tokens": 455, "cached_tokens": 23552}
+{"kind": "chat", "iteration": 13, "model_id": "qwen3.8-flash", "latency_s": 4.8, "prompt_tokens": 26943, "completion_tokens": 73, "cached_tokens": 4096}
+{"kind": "chat", "iteration": 14, "model_id": "qwen3.8-flash", "latency_s": 3.41, "prompt_tokens": 28123, "completion_tokens": 52, "cached_tokens": 26880}

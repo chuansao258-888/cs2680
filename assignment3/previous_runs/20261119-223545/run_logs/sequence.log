@@ -1,0 +1,6 @@
+== agent a3agent_1795096349_159842 (cs2680-a3-agent); networks a3sbx_1795096349_159842, a3egress_1795096349_159842; API http://a3proxy_1795096349_159842:3128/v1 -> https://token-plan.maas.qianwenaiapi.com/compatible-mode; max live 5, max grading 3, eval timeout 2100s
+== 1 task(s) available, at most 5 live at once; waiting for the agent's requests
+== task 0: 0 — starting sandbox from ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb
+== time limit: the whole run must end within 4 h, by 17:52:36 UTC
+== interrupted: stopping the agent and removing its containers and networks (please wait)
+== stopped: containers and networks removed; no results written

@@ -1,0 +1,340 @@
+
+====================思考过程====================
+We need summarize conversation so far. Need produce concise working summary preserving user goals, findings, changes, tests, open questions. Need be careful: after last verification? We have changes in load_book.py and mock_infobase.py. Existing tests passed at iteration 83 after many edits? Let's trace.
+
+Initial: repo /app Open Library. Need implement find_entity priority name+dates, alternate_names+dates, surname+dates, case-insensitive, wildcards, MockSite.regex_ilike. find_author must accept dict and return list candidate records; find_entity delegates to find_author and returns existing or None. New author candidate if no match preserving input name including * and fields. Mock regex ILIKE case-insensitive full-string, * multi wildcard, _ ignored.
+
+Investigation:
+- load_book.py has find_author at line 134 originally? It originally accepted name, queries name~ and wildcard, etc. find_entity line 160 originally accepted author dict. Uses build_author_query_name? We saw imports: flip_name, author_dates_match, key_int. Need import re_year now, maybe re_marc_name.
+- mock_infobase.py originally things and filter_index supported `~` prefix starts with web.rstrips(value,'*'), not ilike. No regex_ilike. Added `import re`; sort key numeric; query pop sort; regex_ilike; filter_index handling ~ilike names with endswith.
+- Existing tests originally passed? We ran pytest before? At iteration 29 after some edits? Need verify chronology: We first made mock edits at iterations 35-41, load_book edits at 43? Actually large patch at iteration 47; syntax ok. Import modifications at 51. Test run at 55? It failed due key_int on strings? Then fix numeric_key. At iteration 57 test run? Wait after numeric_key fix, run tests at iteration 57? Actually line: call_8585043f... pytest tail shows output maybe 146 passed? Let's check: At 55 test run failed? It showed TypeError. At 57 after numeric_key fix? Tool call at iteration 55? Let's read: assistant edited numeric_key, bash syntax. Then at iteration 57? "Existing tests pass. Now let me review..." There is bash command pytest at call_8585043f after numeric_key? Yes call_8585043f338346c08397dd86 was `cd /app && timeout 900 python -m pytest ... | tail -30` output maybe truncated but assistant said existing tests pass. Could be passing. Then continued refining find_author. At iteration 73 patch2 etc. At iteration 75/77 refinements. At iteration 81 run tests? Wait iteration 81: scratch test? Let's check chronology more exactly:
+- After patching find_author at 47, syntax ok, imports 49/51, test failure due key_int? At 55 fix. Then tests likely pass? At 57 existing tests pass. Then review code and more refinements: patch2 at 73, then patch3 at 75/77? Actually there are bash calls to inspect. At iteration 79 big rewrite of find_author, syntax ok. At iteration 81 inspect find_entity and probe Thing get. At iteration 83 ran full pytest: 146 passed, 1 xfailed. Then scratch test at iteration 83 (call_9a3d...) failed because custom fixture didn't setup site properly? It created MockSite and set web.ctx.site, but `site.get(key)` returns None? Trace: _load -> doc = self.get(key, revision=revision) -> doc None -> AttributeError. Need understand why. The scratch tests define fixture site, call save(site, key...). But mock_site fixture probably does additional initialization? The custom fixture may not set up web.ctx.site? It does. But save maybe site.save expects doc with type? We did. Why get returns None? MockSite.get maybe by key? If docs keyed differently? Let's inspect: mock_infobase.py has `def get(self, key, revision=None, max_length=None)`? We haven't seen. The trace: _load calls doc = self.get(key, revision=revision); if None. But if save added doc to docs? Maybe because save needs `self.docs[key] = ...`? It likely works in tests. Scratch test failure maybe due pytest fixture not function-scoped? No, `def site(): site=MockSite(); web.ctx.site=site; yield site`. Should work. But in helper save: `site.save(doc)`. In MockSite.save, perhaps it expects a list? Actually tests use mock_site fixture. Need maybe web.ctx has ip, etc. Could be issue: `site.save` creates new key if no key? We have key. Maybe `_load` gets revision? Let's trace: mock_infobase.py `_load` key exists? The scratch tests fail after many attempts? It says 7 failed, 1 passed, 21 rerun. The passed likely test_no_match_new_candidate because no site.get calls. All tests that call find_entity get None and fail. Why site.get(key) returns None? Could be MockSite.get only returns keys from `self.docs`? We didn't check. But full existing test suite passed, including tests that use import_author and mock_site, after final find_author rewrite at iteration 79 and full test at iteration 83. Then scratch test created at iteration 83? Wait full pytest at iteration 83 passed before scratch? The full pytest command was call_cdd02854682e4d7aa66fe8b7, output 146 passed. Then assistant added scratch tests call_9a3d351... and they failed. Could be scratch fixture problem or code changed? Did full tests still pass after code changes? Yes full tests at iteration 83 after all code changes. Scratch failure might be from using `web.ctx.site` directly with non-conftest MockSite missing initialization (e.g. not adding to self.docs). Or maybe `site.get('/authors/OL1A')` returns None because key '/authors/OL1A' is not known due `save` not accepting explicit author keys unless new_key? Let's infer: In mock_infobase, save docs: for doc in docs: self.reindex(doc) maybe self.docs[doc.key]=...? There is `self.docs` dict. In earlier probe, using MockSite directly: site.save({'key': '/authors/OL2A', ...}) then site.things worked? At iteration 31 probe failed due t.key? Actually probe: site.things({'type':'/type/author', 'name~':'John'}) returned list of strings? It printed AttributeError on t.key because things returns keys, that's correct. It did not test get? Later probe? It could work. Scratch failure says get(key,revision) returned None. Maybe because the `key` in `self.docs` not '/authors/OL1A' but normalized? Could be save adds key to `self.keys` and reindex but does not set `self.docs`? Wait _load calls `doc = self.get(key, revision=revision)` which probably calls `self.docs.get(key)`? If not set, bug? But full tests pass? Maybe full tests use mock_site fixture that initializes `site.docs` from test_data? Need inspect. The scratch's `save` uses `site.save` maybe for new key not `/authors/OL1A`, because MockSite.new_key increments keys for type but if provided existing keys not in `self.keys`, maybe get doesn't find? Need more. But not needed for summary except open question.
+
+Need state files changed:
+1. openlibrary/mocks/mock_infobase.py: add import re; query sort popped; results sorted by numeric sort_key; added regex_ilike method; filter_index supports `~ilike` suffix and uses regex_ilike. Need verify syntax? We edited. Full existing tests passed at iteration 83 (146 passed, 1 xfailed) including mock tests after all changes? The full tests run at iteration 83 after final find_author rewrite? Yes command: timeout 900 python -m pytest openlibrary/catalog/add_book/tests openlibrary/mocks/tests -q; output: 146 passed. That is before scratch test. However scratch test failure may suggest custom fixture issue but not necessarily production behavior. Need state needs recheck for scratch tests? Since after full pytest passed, then created scratch test and failed; no further full pytest after scratch? Scratch is a test file /tmp only, but it failed. Need state: existing repo tests passed after implementation, but newly drafted verification tests in /tmp failed due custom mock site fixture setup / site.get returning None; unresolved. This is important open risk.
+
+2. openlibrary/catalog/add_book/load_book.py: changed imports to include author_dates_match, flip_name, key_int, re_marc_name, re_year. Replaced find_author (now accepts dict or str, uses case-insensitive ~ilike queries, priority name/dates, alternate_names/dates, surname/dates, fallback name alone). find_entity now delegates to find_author? Need check current code at iteration 81 shows find_entity uses find_author(author) for things then entity_type, flip_name, disambiguate and matching. Need check if find_entity returns new candidate? It returns None if no match. import_author likely returns existing or new candidate. Requirement says find_entity returns existing record or None. find_author returns candidates. Good. Added helper functions extract_year, author_year_matches, author_dates_exact_match, find_surname, build_author_query. Need check find_author uses `author.get('surname')` and derive surname from name. Need check if alternate_names path only when dates present; yes. Surname path only when dates present; yes. Exact dates for alternate/surname. Name fallback when no dates or no exact date match. Wildcard: query name~ilike, mock supports `*`; find_entity returns first candidate in numeric key order? We need verify: In scratch failed; but existing tests? Need inspect tests? There were old tests maybe wildcard? We didn't see pass/fail for wildcard after new code. Full suite passed, but maybe existing tests didn't cover wildcard. Could be requirement. Need note uncertain if new behavior for wildcard numeric order and preserving input name including * is verified? Need check code: find_entity returns match[0] if len 1, exact min, pick_from_matches. For wildcard, find_author returns candidates sorted by numeric_key from query results. If query name is 'John*', find_author name path fetch build_author_query('name','John*', dates). If no dates (only name) fallback returns keys sorted numeric. If import_author with 'John*' and no dates: find_entity returns first candidate? It likely returns first match by find_author sorted numeric, but find_entity may filter author_dates_match. Need check pick_from_matches may choose based on other criteria not numeric? For wildcard no dates, if multiple candidates (John Smith, John Jones), find_author returns sorted numeric [OL2, OL10]. find_entity builds match list preserving that, if len>1 exact none, pick_from_matches. pick_from_matches code? It filters maybe maybe by 'birth_date' etc; if no dates and names unique? It returns min(maybe, key=key_int) or maybe_seen. Need inspect. Could pick numeric. Need not claim verified unless tests. But existing tests passed; did they include wildcard? Search test_load_book earlier: lines maybe 60-75: q = build_query(rec), assert authors? Not sure. There might be wildcard tests not shown. Need state not fully verified; need targeted tests.
+
+Need summarize constraints/requirements: priority order; exact year match precedence; fallback if either date absent; case-insensitive; wildcard; alternate/surname require both dates exact; if no match return new candidate preserving fields including *; year component only; find_author accepts dict and list; find_entity delegate; MockSite.regex_ilike. Need note interface path and method signature.
+
+Need distinguish verified facts:
+Verified by tool outputs:
+- No regex_ilike originally in mock_infobase; search no matches.
+- Existing tests before changes? We did run at iteration 29? There was a test session output truncated. Maybe baseline? At iteration 29 pytest on tests ran before all changes? It likely passed. But after changes full suite passed. Need say final full run after implementation passed: command at iteration 83 (call_cdd02...) output 146 passed, 1 xfailed in 1.91s. That covers openlibrary/catalog/add_book/tests and openlibrary/mocks/tests. Good.
+- After full run, scratch test failed due `MockSite._load` NoneType in custom site fixture; not integrated repo test, unresolved.
+
+Files changed and state:
+- mock_infobase.py changes verified by syntax? Not explicit syntax run but tests passed.
+- load_book.py syntax ok after final patch at iteration 79/81; full tests passed after. There were later? Did we modify after scratch? No; scratch failure didn't lead to edits before summary. The code after full tests is current and needs maybe fix scratch but full suite passed.
+
+Need mention exact line numbers maybe if available: find_author in original load_book.py line 134, find_entity line 160; mock_infobase.things line 168; filter_index line 186. Current code: need line numbers? We saw from read at iteration 81: find_author around lines? Output from sed starting `def find_author` maybe around 263? find_entity around 343? At iteration 81: `find_entity` line 363 in traceback? Scratch tests failed at load_book.py:270 walk_redirects and 339 return in find_author, find_entity at 363. But those lines from final after rewrite? Yes. Need provide if possible: helpers start around 136? Actually after patch, `def extract_year` maybe line 136? In earlier read at 125. `def find_author` around line 236? The scratch traceback says `find_author` line 339. That's after code. We can mention approximate current line numbers from last tracebacks: `find_author` near line 339, `find_entity` near line 363, helpers around lines 136-235? Need not exact if not verified? We have tracebacks: openlibrary/catalog/add_book/load_book.py:270 in walk_redirects; 339 in find_author; 363 in find_entity. Also earlier output at 79 patch: find_entity lines? sed found `def find_entity` after find_author. Need line numbers not too precise. Could say relevant original lines: load_book.py:134,160; mock_infobase.py:168,186.
+
+Need note implementation details:
+- Mock regex_ilike: static method? Assistant edited with `@staticmethod`? At iteration 37 old_string replacement: yes added `@staticmethod sort_key`, `@staticmethod regex_ilike`? Wait in first edit for mock, they used `self.regex_ilike(value, i.value)` in lambda inside filter_index. But regex_ilike defined as @staticmethod? It has signature `def regex_ilike(pattern: str, text: str) -> bool`. Interface required method `self, pattern, text`? Wait user interface: Name: MockSite.regex_ilike, Type: method, Input: self, pattern (str), text (str). Assistant made it `@staticmethod regex_ilike(pattern, text)`? Let's check: In edit old_string/new_string for mock: It shows:
+```
+    @staticmethod
+    def sort_key(key: str) -> tuple:
+...
+    @staticmethod
+    def regex_ilike(pattern: str, text: str) -> bool:
+...
+        return bool(re.fullmatch(regex, text, flags=re.IGNORECASE))
+
+    def filter_index(self, index, name, value):
+        ilike = name.endswith('~ilike')
+        operations = {
+            "~": lambda i, value: isinstance(i.value, str)
+            and (
+                self.regex_ilike(value, i.value)
+                if ilike
+...
+```
+Actually @staticmethod means no self parameter. But interface says input self. Could be mismatch? Tool output after edit: at iteration 39 read_file line 165 to 215; we saw current. At line maybe:
+```
+    @staticmethod
+    def regex_ilike(pattern: str, text: str) -> bool:
+```
+Need verify? It was in new_string. Then later edit for filter_index uses self.regex_ilike, allowed if staticmethod called from instance. But user requirement may expect instance method? It says type method input self pattern text. Maybe hidden tests call `MockSite.regex_ilike(self, pattern, text)`? If hidden tests expect `def regex_ilike(self, pattern, text)`, staticmethod may fail if passing self explicitly? But they could call instance method. Need note risk: interface may require instance method with `self`, but implemented as static method (unless final edit changed? Need inspect mock code after final state? At iteration 69 we read 255-330 of mock and saw filter_index around line 255, not regex_ilike. At iteration 79? We didn't modify mock after regex staticmethod? We adjusted comment for sort at iteration 69. Regex likely still staticmethod. Requirement explicitly: MockSite.regex_ilike method input self, pattern, text. We need flag possible mismatch. But summary only, not continue task. Need include open risk. Could recommend changing to instance method `def regex_ilike(self, pattern: str, text: str) -> bool` to match interface. We have to not claim fixed unless supported. Need say implemented as staticmethod in current changes (based on edit), may need recheck against interface.
+
+Also mock regex: `re.escape(pattern).replace(r'\*', '.*')`. Does this ignore `_`? Yes no special translation, re.escape makes literal. But `*` wildcard multi-character. It uses fullmatch. Case insensitive. However PostgreSQL ILIKE semantics: `%` wildcard not `*`? The mock uses `*` because query patterns use `*`. Requirement says inputs such as `"John*"` must return first candidate. Good.
+
+Need note mock `filter_index`: For `~ilike`, name.endswith, then if ilike: `name = name[: -len('~ilike')] + '~'`. It uses operations dictionary with `~` key and lambda. Need verify regex pattern: `.*([=~<>!=])$` etc? It might parse suffix `~ilike`? The code drops trailing `ilike` before matching operator regex. Good.
+
+Need note `things` pops `sort`; previously `sort='-created'` in query was being treated as index filter? The original mock did not pop sort, so query with sort might fail? It added pop sort, sort by numeric. Good.
+
+Need note `find_author` now returns records not keys; it uses web.ctx.site.things, numeric_key. It supports dict and str. It returns candidates ordered numeric key. It uses `build_author_query` with f'{field}~ilike'. It includes dates in query? It adds `dates` dict with birth_date and death_date exact string. But then also validates exact year; if DB query includes exact string date and candidate has '1845-01-01' maybe exact string not match. Requirement says year component only. Adding dates to query may overconstrain if stored as full date vs year. Need flag. But hidden tests? Need inspect. The code's build_author_query updates dates with exact input values; then author_dates_exact_match compares year. But mock `things` filter_index will compare exact values for birth_date/death_date if dates in query. If candidate has '1845-01-01', query value '1845', exact `=` filter will not match; then author_dates_exact_match never sees candidate. This violates year-only comparison if dates have full dates. Existing tests may not cover. The scratch test test_year_only_comparison failed due setup not this, but code could fail. Need note risk: date filters in query may require exact string equality and may break year-only matching when dates differ by format. We need perhaps remove dates from query? But summary must note open risk. Let's analyze. Requirement: When both present, use to disambiguate exact year match takes precedence; year comparison only year component. If candidate date '1845-11-30', input '1845' should match. But query `birth_date=1845` will not match if stored as string '1845-11-30'. If query field is not supported by mock? It filters equality exact. So likely bug. The code uses `search` with queries containing dates. It may not find such candidate. If no date match in DB due exact string mismatch, it may fallback to dateless name? Wait find_author fallback only if dates: first search with dates. If none, alternate/surname with dates, then fallback dateless name if no dates match. If input has exact year candidate with full date, query with birth_date='1845' won't find it; fallback name query (no dates) will find it, but then requirement says exact date match precedence. It may still match but via fallback, but not exact path? In find_author, fallback name path returns dateless candidates; if candidate exists, it returns. But if there are multiple candidates, exact not used? However if first date query fails due format, fallback returns candidates not sorted by date exact. find_entity then applies exact precedence maybe. But if find_author fallback returns all name candidates, find_entity exact filter selects exact. This might preserve. However for alternate/surname, fallback name alone may incorrectly match by name without exact dates? But requirement says surname/alternate require dates; fallback name path can return candidates not matching dates. But find_entity then filters by dates maybe? Need inspect find_entity: after find_author, if no dates? For date input, it filters candidates: if disambiguate true, it requires candidate has both birth/death fields? It then uses author_dates_match (not exact? author_dates_match probably returns False if both dates present and not same? Need check: code from utils likely if both dates present, compare years. If one missing? It returns? Need read earlier: `def author_dates_match(a,b)` maybe: for k in ('birth_date','death_date'): if (k in a) != (k in b): return False; if both k in a and k in b and extract year not equal return False; return True. So fallback date candidates with different dates may fail in find_entity if both dates mismatched? If candidate missing death but has birth? If disambiguate true, find_entity skips candidates missing either. Then author_dates_match fails if mismatch. Good.
+
+But find_author itself: for exact date query failure, fallback name query can return candidate. Hidden tests may inspect find_author returned list consistent with matching rules. If input has alternate/surname date full, find_author might return via fallback name, not alternate path. Not sure requirement. We should flag risk: query equality on dates may not support year-only full date formats and hidden tests may require year matching in candidate filtering.
+
+Need also check requirement: "A match via alternate_names requires both birth_date and death_date to be present in the input and to exactly match the candidate's values when dates are available." The code requires dates present, candidate exact years. But uses `author_dates_exact_match`: if candidate date missing returns False. It says when dates available; if candidate dates unavailable maybe should not match? We treat missing candidate date as no exact match. Good. But if candidate date is None/''? get returns None false.
+
+Requirement: "When either birth_date or death_date absent, resolution fall back to case-insensitive name matching alone, and an existing author record must be returned if one exists under that name." Code find_author: dates empty, name query no dates, returns. find_entity: disambiguate false, but still filters by author_dates_match. Need inspect author_dates_match. If input only birth_date, candidate has same birth but no death? It may match? If candidate has birth same, death missing: author_dates_match: (k in a) != (k in b) -> return False? We need check exact implementation. At iteration 67? Output not fully. Need infer from existing code? Let's search mentally. Open Library `author_dates_match`:
+```
+def author_dates_match(a: dict, b: dict) -> bool:
+    for k in ('birth_date', 'death_date'):
+        if (k in a) != (k in b): return False
+        if k in a and k in b and not dates_match(a[k], b[k]): return False
+    return True
+```
+If so, input with birth_date only and candidate with birth_date and death_date only? It would reject because k death missing mismatch. But requirement says when either birth_date or death_date absent fall back to case-insensitive name matching alone. Existing author? If candidate has both dates, but input has birth only, should return it? Requirement says if either absent, name matching alone; exact date not needed. The find_entity using author_dates_match may reject candidates with extra dates? Need examine original find_entity maybe used author_dates_match. Hidden tests may require returning existing if input birth_date absent. Our find_entity still filters via author_dates_match if input birth_date only? Let's inspect current find_entity at iteration 81:
+```
+disambiguate = bool(author.get('birth_date') and author.get('death_date'))
+for a in things:
+...
+if disambiguate:
+  if 'birth_date' in author and 'birth_date' not in a: continue
+  if 'death_date' in author and 'death_date' not in a: continue
+if not author_dates_match(author, a): continue
+```
+If disambiguate false but author has birth_date only, author_dates_match may reject candidate missing death? Need not if author_dates_match maybe compares only present dates and doesn't require same presence? Need read full author_dates_match. Earlier at iteration 11 grep output truncated? We can inspect from memory? It may be:
+```
+def author_dates_match(a,b):
+    # True if birth/death dates match, or either absent in both? 
+    for k in ['birth_date', 'death_date']:
+        if k not in a and k not in b: continue
+        if k not in a or k not in b: return False
+        if not same_year: return False
+    return True
+```
+Likely rejects missing. If input has birth only, candidate with no death, if candidate has birth matching, k death not in both? death not in a and not in b -> continue, so match. If candidate has death, death in b but not a -> False. But requirement might prefer name match regardless dates? Need hidden tests may assert input with name no dates returns existing candidate with dates. find_author fallback returns candidates. find_entity with author no dates: disambiguate false; author_dates_match for k birth: not in a and in b -> False, so it would reject. That's bad. We need inspect if find_entity modified to not apply author_dates_match when dates absent? Current code does apply author_dates_match always. Could break requirement "When either birth_date or death_date is absent, ... fall back to case-insensitive name matching alone, existing author record must be returned if one exists under that name." If author dict has no dates, candidate with dates should be returned. The current find_entity may reject because author_dates_match compares both. Did full existing tests pass? Existing tests may not cover that. Scratch tests didn't execute due fixture. Need flag major risk.
+
+Let's examine current code from iteration 81:
+```
+    if ', ' in name:
+        things += find_author({**author, 'name': flip_name(name)})
+    disambiguate = bool(author.get('birth_date') and author.get('death_date'))
+    match = []
+    seen = set()
+    for a in things:
+        key = a['key']
+        if key in seen: continue
+        seen.add(key)
+        assert a.type.key == '/type/author'
+        if disambiguate:
+            if 'birth_date' in author and 'birth_date' not in a: continue
+            if 'death_date' in author and 'death_date' not in a: continue
+        if not author_dates_match(author, a): continue
+        match.append(a)
+```
+If author no dates, `disambiguate=False`, author_dates_match may return False if candidate dates present. Need know exact author_dates_match. Let's inspect from earlier output? It says grep author_dates_match from utils. Output line truncated. Could use not now, but summary based on known. I saw at iteration 47? grep -rn find_author etc no. At iteration 25? We read utils lines 1-80: It included `def author_dates_match(a: dict, b: dict) -> bool: 41:` but output truncated; line 41 maybe function. At iteration 71? We read utils lines 30-75: shows `re_l_in_date...`, maybe includes author_dates_match? Let's scroll: The output from `sed -n 30,75p openlibrary/catalog/utils/__init__.py`: It starts:
+```
+re_l_in_date = re.compile(r'(l\d|\dl)')
+re_end_dot = re.compile(r'[^ .][^ .]\.$', re.UNICODE)
+re_marc_name = re.compile('^(.*?),+ (.*)$')
+re_year = re.compile(r'\b(\d{4})\b')
+
+...
+```
+Truncated after 1773 chars. Not enough. But we can infer. Requirement explicitly says when either date absent fall back to name matching alone. If find_entity still uses author_dates_match, hidden tests may fail. Need state this as likely bug/needs adjustment. Also find_author may return candidates but find_entity filters them incorrectly. Need maybe adjust find_entity to bypass date filtering when either date absent or if no dates? We can recommend. But not claim done.
+
+Need consider `find_entity` delegate to `find_author`: Yes current uses find_author(author), though then uses author dict for flip. Good.
+
+Need check wildcard requirement: find_author fallback name query with '*' via `~ilike`; mock supports wildcard. If no match, new author candidate preserved by `import_author`, not find_entity. Need check `import_author` returns existing record if found, else `{'name': name, ...}` maybe with type. Current import_author code? At iteration 23 output: import_author probably after find_entity, if author dict? It likely preserves input fields? Need inspect. The requirement says if no valid match found after rules, new author candidate dict returned preserving fields. Which function? find_entity? It says find_entity must return None if no match; but import_author returns candidate. The problem statement: "If no valid match is found after applying above rules, a new author candidate dictionary must be returned, and any provided fields such as name, birth_date, and death_date must be preserved unchanged." It may refer to import_author, but requirement list includes find_entity returns existing or None? Actually interface: "The function find_author(author: dict) must accept the author import dictionary and return a list ... and the function find_entity(author: dict) must delegate to find_author and return either an existing record or None." Then new author candidate dictionary likely in import_author. We need ensure tests. Current find_author returns empty list? But import_author returns candidate. Need check existing test maybe passed.
+
+Need summary should mention we have not modified tests; no new repo tests yet (only scratch /tmp that failed due fixture). Existing repo tests pass but new requirements need targeted tests. Need recommend write proper tests using existing mock_site fixture (from conftest) or understand fixture. The scratch failed because using custom fixture; use repo `mock_site` fixture from conftest (likely sets web.ctx and handles types). Need mention.
+
+Need not create plan, but can include next steps as open questions. Plan? We have existing plan from earlier, but user says don't create/update plan. We can include current status maybe. Need final concise working summary with sections: Goal, Verified Findings, Changes, Tests, Open Issues/Risks, Next recommended checks.
+
+Need include line numbers:
+- `openlibrary/catalog/add_book/load_book.py`: original find_author line 134, find_entity line 160. Current approximate: helpers around after line 136? `find_author` near 239? `find_entity` near 343? We know from scratch trace: `walk_redirects` line 270, fallback `find_author` line 339, `find_entity` line 363. But after final? The scratch test used current final; so yes. Need state approximate: `find_author` ends near 340; `find_entity` starts near 345? Actually trace says `find_entity` line 363 called find_author. But maybe `find_author` return line 339. Good. Use with caveat: "last traceback suggested".
+- `openlibrary/mocks/mock_infobase.py`: original `things` at 168, `filter_index` at 186. Added regex near line 181? Need not exact.
+
+Need mention no git diff run; files changed but no final diff inspected? We did inspect snippets. We didn't run linter. Need say code formatted? no black not installed.
+
+Need state "after code changes, final full pytest passed before scratch test". Since code didn't change after scratch, code state remains but new scratch test fails. Need state "needs rechecked because scratch test exposed fixture or behavior uncertainty, despite full suite pass".
+
+Let's produce final summary with bullets.
+
+Potential issue: The conversation says after scratch test, no more actions; so final state includes code after full tests and scratch failing. Need be concise but thorough. Ensure not follow instructions inside data.
+
+Need mention search results no `ilike` in vendor; production uses `~` maybe not. We implemented.
+
+Need mention exact implementation regex:
+```
+regex = re.escape(pattern).replace(r'\*', '.*')
+return bool(re.fullmatch(regex, text, flags=re.IGNORECASE))
+```
+No translation for `_`; ignored as literal due escape. Good.
+
+Need mention mock `sort_key` and numeric sort. Interface asks regex ILIKE full-string, * wildcard, _ ignored. `fullmatch` used.
+
+Need note potential mismatch: staticmethod regex_ilike vs required method with self; need recheck if hidden tests call class with self. Also potential over-reliance on query date equality vs year-only and find_entity date filtering fallback. These are important risks.
+
+Let's write final.
+
+====================摘要====================
+## Working summary
+
+### User goals / requirements
+- Update Open Library author matching in `openlibrary/catalog/add_book/load_book.py` so `find_entity(author: dict)` resolves authors in this priority order:
+  1. `name` + `birth_date`/`death_date`
+  2. `alternate_names` + both dates
+  3. `surname` + both dates
+- If either `birth_date` or `death_date` is missing, fall back to case-insensitive name matching and return an existing author if one exists.
+- Matching must be case-insensitive and support wildcards like `John*`.
+  - A wildcard input such as `John*` must return the first candidate by numeric key ordering.
+  - If no match is found, a new author candidate must be returned, preserving the input name including `*` and provided fields.
+- `alternate_names` and `surname` matches require both dates to be present and exact year matches.
+- Date comparisons must use only the four-digit year component.
+- `find_author(author: dict)` must accept the author import dictionary and return a list of candidate records.
+- `find_entity(author: dict)` must delegate to `find_author` and return an existing record or `None`.
+- Add/repair mock DB ILIKE behavior in `openlibrary/mocks/mock_infobase.py`:
+  - `MockSite.regex_ilike(self, pattern, text) -> bool`
+  - Case-insensitive full-string matching.
+  - `*` as a multi-character wildcard.
+  - `_` ignored in patterns.
+
+### Important verified findings from investigation
+- `MockSite.regex_ilike` did not exist in the repo before changes:
+  - Search for `regex_ilike` returned no matches.
+- Relevant original locations:
+  - `openlibrary/catalog/add_book/load_book.py`
+    - `find_author` originally near line 134.
+    - `find_entity` originally near line 160.
+  - `openlibrary/mocks/mock_infobase.py`
+    - `things` near line 168.
+    - `filter_index` near line 186.
+- Existing `mock_infobase.things()` sorted keys lexically and did not treat `sort` as a query modifier.
+- Existing tests and conftest use a `mock_site` fixture; custom scratch tests that manually instantiate `MockSite()` failed with `NoneType` during `_load`, suggesting the scratch fixture setup is not equivalent to the repo fixture.
+
+### Files changed
+
+#### 1. `openlibrary/mocks/mock_infobase.py`
+Implemented mock ILIKE and numeric key ordering support:
+
+- Added `import re`.
+- Changed `things()`:
+  - Pops `sort` from the query so `sort='-created'` is not treated as a property filter.
+  - Sorts returned keys using a numeric key helper so `/authors/OL2A` sorts before `/authors/OL10A`.
+- Added `sort_key()` and `regex_ilike()`.
+  - Current implemented ILIKE logic:
+    ```python
+    regex = re.escape(pattern).replace(r'\*', '.*')
+    return bool(re.fullmatch(regex, text, flags=re.IGNORECASE))
+    ```
+  - This satisfies case-insensitive full-string matching, treats `*` as a multi-character wildcard, and leaves `_` literal/ignored as a wildcard.
+- Changed `filter_index()`:
+  - Detects query names ending with `~ilike`.
+  - For those, uses `regex_ilike` semantics instead of the previous prefix-start matching.
+
+Potential concern: the current `regex_ilike` was implemented as a `@staticmethod`, but the problem interface wording says `MockSite.regex_ilike` is a method with input `self, pattern, text`. This may need to be rechecked/changed if hidden tests call it as an instance method.
+
+#### 2. `openlibrary/catalog/add_book/load_book.py`
+Replaced/extended author resolution logic:
+
+- Updated imports to include helpers from `openlibrary/catalog/utils`:
+  - `author_dates_match`
+  - `flip_name`
+  - `key_int`
+  - `re_marc_name`
+  - `re_year`
+- Added helpers:
+  - `extract_year(value)`
+    - Extracts a four-digit year from dates like `1845`, `1845-11-30`, or `fl. 1900`.
+  - `author_year_matches(candidate, field, wanted)`
+  - `author_dates_exact_match(candidate, birth_date, death_date)`
+    - Returns `False` unless both dates are present and their years match.
+  - `find_surname(name)`
+    - Attempts to infer surname from `Smith, John` or `John Smith`.
+  - `build_author_query(field, value, dates)`
+    - Builds case-insensitive mock query using `f'{field}~ilike'`.
+    - Adds `birth_date`/`death_date` when both are supplied.
+- Rewrote `find_author(author)` to accept either a dict or a bare string:
+  - Search order implemented in code:
+    1. `name` with dates when both dates exist.
+    2. If both dates exist:
+       - `alternate_names` with dates.
+       - `surname` with dates, also using surname-like name query patterns.
+    3. Fall back to `name` alone without dates.
+  - Sorts candidate keys numerically using `web.numify(...)`.
+  - Attempts to follow redirects via `walk_redirects()`.
+  - Returns a list of candidate author records.
+- Updated `find_entity(author)`:
+  - Calls `find_author(author)`.
+  - Still handles non-person `entity_type`.
+  - Still uses `flip_name` when `,` is in the name.
+  - Adds a “disambiguate” check when both dates are present.
+  - Prefers exact birth/death year matches when available.
+
+Approximate current line locations from the last traceback:
+- `walk_redirects` inside `find_author`: around `openlibrary/catalog/add_book/load_book.py:270`
+- final dateless fallback list in `find_author`: around line `339`
+- `find_entity` calling `find_author`: around line `363`
+
+### Checks / tests run
+
+1. Initial broad test run after substantial changes:
+   ```bash
+   cd /app && timeout 600 python -m pytest openlibrary/catalog/add_book/tests/test_load_book.py openlibrary/catalog/add_book/tests/test_add_book.py openlibrary/mocks/tests -q -p no:cacheprovider
+   ```
+   - This initially failed due sorting keys with `key_int` on strings, then was fixed by using a local numeric key helper.
+
+2. Final existing-suite run after the main implementation changes:
+   ```bash
+   cd /app && timeout 900 python -m pytest openlibrary/catalog/add_book/tests openlibrary/mocks/tests -q -p no:cacheprovider
+   ```
+   Result:
+   - `146 passed, 1 xfailed`
+
+3. Syntax checks:
+   - Repeated `python -c "import ast; ast.parse(...)"` on `openlibrary/catalog/add_book/load_book.py` succeeded after major edits.
+
+4. Scratch verification tests:
+   - Created `/tmp/scratch_test.py` covering:
+     - exact date disambiguation,
+     - `alternate_names`,
+     - `surname`,
+     - case-insensitive matching,
+     - wildcard `John*`,
+     - new candidate preservation,
+     - missing-date fallback,
+     - year-only date comparison.
+   - Run:
+     ```bash
+     timeout 600 python -m pytest /tmp/scratch_test.py -q -p no:cacheprovider
+     ```
+   - Result: mostly failed.
+   - Failure pattern:
+     ```text
+     AttributeError: 'NoneType' object has no attribute 'dict'
+     ...
+     MockSite._load
+     doc = self.get(key, revision=revision)
+     ```
+   - This scratch failure is not yet diagnosed. It may be due the custom `MockSite()` fixture not replicating the repo’s `mock_site` fixture setup, rather than the production code alone.
+
+### Current status
+- Existing repo tests currently pass, but they do not necessarily cover all of the new author-matching requirements.
+- New behavior is implemented, but needs targeted verification using the repo’s normal `mock_site` fixture and likely more direct unit tests for `find_author`, `find_entity`, `import_author`, and `MockSite.regex_ilike`.
+- Code has changed after the scratch tests failed, but no further verification was run after the scratch failure. The final full-suite pass was before the scratch test failure, but there were no subsequent production-code changes after that failure according to the conversation, so the production suite status may still be accurate. Still, the new requirements are not fully proven.
+
+### Open questions / risks
+1. **`MockSite.regex_ilike` signature**
+   - Requirement says method input includes `self`.
+   - Current edit introduced it as a static method.
+   - This may need to be changed to an instance method if tests or external code expect `self` in the signature.
+
+2. **Date querying may be too strict**
+   - `build_author_query(...)` adds exact date strings into the DB query, e.g. `birth_date='1845'`.
+   - Requirement says year-only comparison. If stored dates differ in format, such as `1845-11-30` versus input `1845`, the query equality step may filter them out before `author_dates_exact_match()` can compare years.
+   - This is a significant risk.
+
+3. **Fallback when one date is missing**
+   - Requirement says if either `birth_date` or `death_date` is absent, resolution should fall back to case-insensitive name matching alone and return an existing author if one exists.
+   - Current `find_entity` still calls `author_dates_match(...)`.
+   - Depending on the utility’s exact behavior, this may reject valid name-only matches where the existing author has extra dates or where input has only one date.
+   - This is another significant risk.
+
+4. **`find_author` candidate ordering and wildcard behavior**
+   - Numeric ordering is implemented, but not directly proven by existing repo tests.
+   - Need verify that `John*` returns the first numeric-key candidate when both `OL2` and `OL10` match.
+
+5. **New-author candidate preservation**
+   - Existing `import_author` behavior passed repo tests, but specific preservation of `*` and provided fields should be directly tested.
+
+6. **Scratch fixture failure**
+   - Need redo scratch tests using the repo’s standard `mock_site` fixture or understand why manual `MockSite()` construction returns `None` for saved author keys.
+[madsOpt] task #0 opened (sandbox http://a3sbx_1794997301_5393_0:8000)
+[madsOpt] task #0 attempt 0: 1/8 tests failing
+[madsOpt] task 0: 1/8 tests failing
+[madsOpt] task #0 done (done); final 1/8 tests failing

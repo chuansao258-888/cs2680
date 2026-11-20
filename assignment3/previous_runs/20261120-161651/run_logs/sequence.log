@@ -1,0 +1,5 @@
+== agent a3agent_1795161207_731 (cs2680-a3-agent); networks a3sbx_1795161207_731, a3egress_1795161207_731; API http://a3proxy_1795161207_731:3128/v1 -> https://token-plan.maas.qianwenaiapi.com/compatible-mode; max live 2, max grading 1, eval timeout 2100s
+== 3 task(s) available, at most 2 live at once; waiting for the agent's requests
+== task 0: instance_ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59 — starting sandbox from jefzda/sweap-images:ansible.ansible-ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59
+== task 1: instance_qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d — starting sandbox from jefzda/sweap-images:qutebrowser.qutebrowser-qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac780366
+== task 1 attempt 0: grading started (5204 bytes)

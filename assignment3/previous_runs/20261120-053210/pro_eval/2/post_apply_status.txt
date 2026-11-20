@@ -1,0 +1,3 @@
+ M scanner/redhatbase.go
+ M scanner/utils.go
+ M scanner/utils_test.go

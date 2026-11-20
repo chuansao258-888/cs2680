@@ -16,12 +16,18 @@ from .config import (
     API_BACKOFF_MAX_S,
     API_BACKOFF_S,
     API_RETRIES,
+    LIVE_MODEL_OUTPUT,
+    LIVE_TOOL_RESULTS,
+    LIVE_TRACE,
+    LIVE_TRACE_MAX_CHARS,
     MAX_ITERATIONS,
     MAX_OPEN_TASKS,
     MODEL_EXTRA_BODY,
     MODEL_STANDARD,
     PRESERVE_THINKING,
+    REPEATED_READ_THRESHOLD,
     RETRYABLE_STATUS,
+    TOOL_RESULT_PREVIEW_CHARS,
     api_settings,
 )
 from .prompts import AGENT_SYSTEM_PROMPT, PROGRESS_REMINDER, REPEATED_READ_REMINDER
@@ -32,15 +38,6 @@ from .tools import TOOL_LIST, execute_tool
 def _debug(message: str) -> None:
     print(f"[madsOpt] {message}", file=sys.stderr, flush=True)
 
-
-LIVE_TRACE = os.getenv("MADSOPT_LIVE_TRACE", "1").lower() not in {"0", "false", "no"}
-LIVE_TRACE_MAX_CHARS = int(os.getenv("MADSOPT_LIVE_TRACE_MAX_CHARS", "4000"))
-# Tool results are the noisiest stream; show them only when explicitly asked.
-LIVE_TOOL_RESULTS = (os.getenv("MADSOPT_LIVE_TOOL_RESULTS") or "0").lower() not in {"0", "false", "no"}
-# A model's final text often repeats a code patch already visible through tool calls.
-LIVE_MODEL_OUTPUT = (os.getenv("MADSOPT_LIVE_MODEL_OUTPUT") or "0").lower() not in {"0", "false", "no"}
-REPEATED_READ_THRESHOLD = int(os.getenv("MADSOPT_REPEATED_READ_THRESHOLD", "3"))
-TOOL_RESULT_PREVIEW_CHARS = int(os.getenv("MADSOPT_TOOL_RESULT_PREVIEW_CHARS", "400"))
 
 # Which task this worker thread is serving, so interleaved live traces stay attributable.
 _live_state = threading.local()
@@ -253,6 +250,7 @@ def _tool_result_header(
         is_error: bool,
         duration_s: float,
         body: str,
+        output_id: str | None = None,
 ) -> str:
     """Presentation header for a live tool message; the body stays raw."""
     metadata = {
@@ -267,8 +265,8 @@ def _tool_result_header(
     # the sandbox directly, so preserve them when available.
     if isinstance(arguments.get("path"), str):
         metadata["path"] = arguments["path"]
-    if tool_name == "read_archived_output":
-        metadata["output_id"] = arguments.get("output_id")
+    if output_id or tool_name == "read_archived_output":
+        metadata["output_id"] = output_id or arguments.get("output_id")
     if isinstance(value, dict):
         if "exit_code" in value:
             metadata["exit_code"] = value["exit_code"]
@@ -387,6 +385,7 @@ class Agent:
                 )
                 task_memory.record_usage(getattr(response.usage, "prompt_tokens", 0) or 0)
                 if not response.choices:
+                    reason = "no_choices"
                     break
 
                 message = response.choices[0].message
@@ -427,6 +426,11 @@ class Agent:
                         result = f"Error: {error}"
 
                     body = _tool_content(result)
+                    # Large bash outputs are archived at birth: the message is
+                    # born in its final preview form and is never rewritten,
+                    # which keeps the request prefix byte-stable.
+                    born = task_memory.record_tool_result(
+                        call.id, name, body, arguments, is_error)
                     header = _tool_result_header(
                         name,
                         arguments,
@@ -434,11 +438,15 @@ class Agent:
                         is_error,
                         time.perf_counter() - tool_started,
                         body,
+                        output_id=born[0] if born else None,
                     )
                     content = f"{header}\n{body}"
 
+                    # The trace keeps the full raw body; only the history
+                    # message may carry the preview.
                     logger.tool_result(iteration, name, content, is_error)
-                    task_memory.record_tool_result(call.id, name, body)
+                    if born:
+                        content = f"{header}\n{born[1]}"
                     if LIVE_TOOL_RESULTS:
                         preview = body[:TOOL_RESULT_PREVIEW_CHARS]
                         if len(body) > TOOL_RESULT_PREVIEW_CHARS:
@@ -491,6 +499,8 @@ class Agent:
                             self.model_id,
                         )
                     _record_latency(logger, compaction_record)
+            else:
+                reason = "iteration_limit"
 
         except Exception:
             reason = "error"

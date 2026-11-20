@@ -494,11 +494,8 @@ def start_infra():
         'mkdir -p /madsOpt/madsOpt_logs && cp -r madsOpt_logs/. /madsOpt/madsOpt_logs/ 2>/dev/null || true\n')
     env = [*[x for v in sorted(os.environ) if v.startswith("CS2680_") and v != "CS2680_BASE_URL"
              for x in ("-e", v)],                                                            # key + model ids
-           "-e", "MADSOPT_MAX_ITERATIONS", "-e", "MADSOPT_LIVE_TRACE",
-           "-e", "MADSOPT_LIVE_TRACE_MAX_CHARS", "-e", "MADSOPT_LIVE_MODEL_OUTPUT",
-           "-e", "MADSOPT_LIVE_TOOL_RESULTS", "-e", "MADSOPT_API_RETRIES",
-           "-e", "MADSOPT_API_BACKOFF_S", "-e", "MADSOPT_API_BACKOFF_MAX_S",
-           "-e", "MADSOPT_PRESERVE_THINKING",
+           *[x for v in sorted(os.environ) if v.startswith("MADSOPT_")
+             for x in ("-e", v)],                                                            # agent knobs, all of them
            "-e", f"CS2680_BASE_URL={API_BASE_URL}",     # the egress proxy: the agent's only way to the API
            "-e", f"HOST_ID={host_id}", "-e", "PYTHONDONTWRITEBYTECODE=1"]
     hidden = f"{HOSTLOG}/hidden.json"     # the task lists (instance ids, hidden test names) read as {} in the agent
