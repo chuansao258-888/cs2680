@@ -69,6 +69,10 @@ PREVIEW_TAIL_CHARS = 500
 # cache, and the tail preview keeps the test summary the model acts on.
 BASH_INSERT_MIN_CHARS = 2000
 BASH_PREVIEW_TAIL_CHARS = 900
+# Very large read_file results are capped AT THE SOURCE (ReadFileTool): the
+# model gets a leading page plus the next start_line, like a pager. The file
+# itself is the source, so no archive round-trip is involved.
+READ_MAX_CHARS = 4000
 
 # --- Live display ---
 LIVE_TRACE = True

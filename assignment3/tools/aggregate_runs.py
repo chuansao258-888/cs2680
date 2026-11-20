@@ -400,9 +400,21 @@ def render_charts(beh, cost_parts, charts_dir):
     made = []
 
     def save(fig, name):
+        import io
+        buf = io.BytesIO()
         fig.tight_layout()
-        fig.savefig(os.path.join(charts_dir, name), dpi=130)
+        fig.savefig(buf, format="png", dpi=130)
         plt.close(fig)
+        # drvfs rejects O_TRUNC writes while a Windows process holds the file
+        # open (image preview); write a temp name and rename over it.
+        tmp = os.path.join(charts_dir, name + ".tmp")
+        with open(tmp, "wb") as fh:
+            fh.write(buf.getvalue())
+        try:
+            os.replace(tmp, os.path.join(charts_dir, name))
+        except OSError:
+            os.replace(tmp, os.path.join(charts_dir, name.replace(".png", "_new.png")))
+            name = name.replace(".png", "_new.png")
         made.append(name)
 
     # 1. Per-task wall-time composition: model vs tools vs other
@@ -455,7 +467,7 @@ def render_charts(beh, cost_parts, charts_dir):
     ax.set_ylabel("total minutes")
     ax.set_title("Tool execution time (total, with avg/max per call)")
     ax.margins(y=0.2)
-    save(fig, "tool_time.png")
+    save(fig, "tool_time_total.png")
 
     # 4. API latency histogram
     lats = [x for _, b in beh for x in b["lats"]]
@@ -531,6 +543,33 @@ BEHAVIOR_NOTES = {
     },
 }
 RUN_NOTES = {2: "对 Full Run 1 两道失败题（21b426b、83909bfa）的零反馈重跑，非全量运行。"}
+
+
+# Hand-written per-run 总结与反思 (inserted after 性能对比).
+RUN_REFLECTIONS = {
+    3: [
+        "本节回答一个问题：**本轮代码改动（V6 压缩重设计）对 agent 表现有没有提升**——分成本/时延、解题能力、工作现场保持三个维度评估。",
+        "",
+        "**1. 成本与时延：明确提升，达成设计目标**",
+        "",
+        "- 缓存命中 83.1%→91.7%，未缓存输入占比 51%→约 33%，总成本 ¥7.64→¥6.11（−20%），$/solved $0.083→$0.072。",
+        "- 平均解题时间持平（24.7→24.8 min），说明提速不以截断必要工作为代价。",
+        "- 逐题看长尾显著收窄：teleport/1316e67 从贴 99 轮上限降到 70 轮通过；ansible/f327e65 墙钟 60.6→14.4 min（上下文变轻 + 本轮无上游挂起停滞）。",
+        "",
+        "**2. 解题能力：无提升也无退化证据——12/15 对 13/15 的差额不属于本轮改动**",
+        "",
+        "- 三道未过逐一定位到 trace 与补丁层：21b426b 是跨两个代码版本的第三次逐字节相同选择（确定性，与压缩无关）；83909bfa、a26c325 是精确字符串决策的硬币落面变化（基准轮同样存在此类方差）。",
+        "- 没有任何一例失败可归因于压缩导致的信息丢失或误导：7 次层 2 压缩后均正常再校准。",
+        "- 反向证据：同参重复测试命令 43→44（持平），未出现\"因预览丢细节而重跑\"的系统性恶化。",
+        "",
+        "**3. 工作现场保持：提升**",
+        "",
+        "- 基准轮 1316e67 在压缩后迷失工作目录、浪费约 20 轮；本轮结构化状态块 + 归档索引生效后，压缩后行为全部连贯，`read_archived_output` 使用从全程 1 次升至 14 次——取回通路真正被用起来了。",
+        "- 唯一一次归档截断伪影（53d376b）被 agent 自觉识别并自愈，未造成错误编辑。",
+        "",
+        "**结论**：V6 改动在其设计目标（成本/时延/现场保持）上是**净提升**，对解题正确性**无副作用证据**；单轮解题数 −1 属字符串题方差，不构成退化证据。限制说明：每配置单样本，逐题变化不可单独归因，可靠结论仅在汇总层。",
+    ],
+}
 
 
 def write_full_run_report(attempts, run_no=1, note=None):
@@ -694,6 +733,9 @@ def write_full_run_report(attempts, run_no=1, note=None):
                            "", f"共同题目中 {faster} 题明显更快（墙钟降幅 >5%），{slower} 题明显更慢。"]
             plines += ["", "任务集不同时解题数不可直接比。"]
             sections.append(("性能对比", plines))
+        refl = RUN_REFLECTIONS.get(run_no)
+        if refl:
+            sections.append(("总结与反思", list(refl)))
 
     table = ["| 题目 | 结果 | 轮数 | 墙钟 min | 模型 min | 输入 M | 输出 K | 缓存% | 花费 ¥ |",
              "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
@@ -768,7 +810,7 @@ def write_full_run_report(attempts, run_no=1, note=None):
             s2 = "、".join(f"turn {t + 1 if t is not None else '?'}" for t in l2) or "无"
             blines.append(f"| {short(a['label'])} | {c1} | {s1} | {len(l2)} | {s2} |")
         blines += ["", COMPACT_NOTE_V3 if run_no >= 3 else COMPACT_NOTE_V1, ""]
-        for cname in ("tool_calls.png", "tool_time.png", "time_composition.png"):
+        for cname in ("tool_calls.png", "tool_time_total.png", "time_composition.png"):
             if cname in charts:
                 blines += ["", f"![{cname[:-4]}](charts/{cname})"]
         blines += ["", "**自动标记**：", ""]

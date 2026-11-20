@@ -1,6 +1,6 @@
 # CS2680 Assignment 3 运行报告 · Full Run 3
 
-生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §10）
+生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §11）
 
 ## 1. 概述
 
@@ -164,7 +164,30 @@ assignment3/starter_code/src/agentic_loop.py |  34 ++-
 
 任务集不同时解题数不可直接比。
 
-## 5. 逐题结果
+## 5. 总结与反思
+
+本节回答一个问题：**本轮代码改动（V6 压缩重设计）对 agent 表现有没有提升**——分成本/时延、解题能力、工作现场保持三个维度评估。
+
+**1. 成本与时延：明确提升，达成设计目标**
+
+- 缓存命中 83.1%→91.7%，未缓存输入占比 51%→约 33%，总成本 ¥7.64→¥6.11（−20%），$/solved $0.083→$0.072。
+- 平均解题时间持平（24.7→24.8 min），说明提速不以截断必要工作为代价。
+- 逐题看长尾显著收窄：teleport/1316e67 从贴 99 轮上限降到 70 轮通过；ansible/f327e65 墙钟 60.6→14.4 min（上下文变轻 + 本轮无上游挂起停滞）。
+
+**2. 解题能力：无提升也无退化证据——12/15 对 13/15 的差额不属于本轮改动**
+
+- 三道未过逐一定位到 trace 与补丁层：21b426b 是跨两个代码版本的第三次逐字节相同选择（确定性，与压缩无关）；83909bfa、a26c325 是精确字符串决策的硬币落面变化（基准轮同样存在此类方差）。
+- 没有任何一例失败可归因于压缩导致的信息丢失或误导：7 次层 2 压缩后均正常再校准。
+- 反向证据：同参重复测试命令 43→44（持平），未出现"因预览丢细节而重跑"的系统性恶化。
+
+**3. 工作现场保持：提升**
+
+- 基准轮 1316e67 在压缩后迷失工作目录、浪费约 20 轮；本轮结构化状态块 + 归档索引生效后，压缩后行为全部连贯，`read_archived_output` 使用从全程 1 次升至 14 次——取回通路真正被用起来了。
+- 唯一一次归档截断伪影（53d376b）被 agent 自觉识别并自愈，未造成错误编辑。
+
+**结论**：V6 改动在其设计目标（成本/时延/现场保持）上是**净提升**，对解题正确性**无副作用证据**；单轮解题数 −1 属字符串题方差，不构成退化证据。限制说明：每配置单样本，逐题变化不可单独归因，可靠结论仅在汇总层。
+
+## 6. 逐题结果
 
 | 题目 | 结果 | 轮数 | 墙钟 min | 模型 min | 输入 M | 输出 K | 缓存% | 花费 ¥ |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -184,7 +207,7 @@ assignment3/starter_code/src/agentic_loop.py |  34 ++-
 | ansible/a26c325 | FAIL | 62 | 14.3 | 12.7 | 2.10 | 29.3 | 92.8 | 0.395 |
 | qutebrowser/21b426b | FAIL | 44 | 10.9 | 8.1 | 1.23 | 18.6 | 92.4 | 0.238 |
 
-## 6. 汇总指标
+## 7. 汇总指标
 
 | 指标 | 数值 |
 |---|---|
@@ -202,7 +225,7 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 ![Cost breakdown](charts/cost_breakdown.png)
 
-## 7. Agent 行为分析
+## 8. Agent 行为分析
 
 数据源：run.jsonl 的 tool_call/tool_result 事件；思维链总结基于 agent.log 的 [thinking] 记录（run5 缺失，据工具序列重建）。重复浪费 = 工具名与参数完全相同的多余调用次数；高频重读 = 同一文件以不同行段反复读取。
 
@@ -261,7 +284,7 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 ![tool_calls](charts/tool_calls.png)
 
-![tool_time](charts/tool_time.png)
+![tool_time_total](charts/tool_time_total.png)
 
 ![time_composition](charts/time_composition.png)
 
@@ -341,34 +364,34 @@ compaction 调用未记录 usage，成本低估可忽略。
 45 轮、一批归档、无摘要压缩；_vmap 功能重构全对，thinking 近十段反复推演 repr 格式，明确枚举过 `self._vmap.values()`（odict_values）与 OrderedDict 两种渲染，但因"无法回忆 upstream 提交"以可见测试为唯一证据选定 `values=list(...)`——与前三次完全相同的决策路径与失败点，系统性而非随机；还顺手把可见 test_iter 改成 _vmap.values() 自洽。
 
 
-## 8. Token 用量分析
+## 9. Token 用量分析
 
 1. **输入:输出 = 52:1**：agent 负载的成本主体是反复提交上下文，而非生成。90% 的缓存命中节省约 ¥17.5；若无前缀缓存，总成本约为 ¥23.6。前缀缓存是该 harness 中价值最高的机制，compaction 策略（减少触发、触发后保持前缀稳定）直接决定成本。
 2. **输出仅占 token 的 1.9%，却占成本 23%**；未缓存输入占 token 10%、占成本 36%。压缩成本的两个杠杆：减少上下文失效、控制输出长度。reasoning_effort=medium 下平均输出 586 tok/call、平均延迟 14.2 s。
 
 ![API latency distribution](charts/api_latency.png)
 
-## 9. 失败案例分析
+## 10. 失败案例分析
 
 本轮 12/15，三道未过均为只差 1 个必过测试的精确字符串近失；与基准轮（Full Run 1）对照可分离随机性与确定性：
 
-### 9.1 qutebrowser/21b426b —— test_repr，第三次逐字节相同的选择
+### 10.1 qutebrowser/21b426b —— test_repr，第三次逐字节相同的选择
 
 - 补丁 repr 实现与 run8、重跑轮完全一致：`values=list(self._vmap.values())`，而官方测试锁定 gold 的 `vmap=odict_values([...])`。
 - **跨两个代码版本、三次尝试零变化 → 确定性偏差实锤**：V6 上下文重设计（含压缩后状态块）也未能改变该选择。唯一已知有效路径是近似失败重试（回喂失败测试名/断言差异）。
 
-### 9.2 ansible/83909bfa —— test_api_no_auth_but_required，措辞掷硬币再次落错
+### 10.2 ansible/83909bfa —— test_api_no_auth_but_required，措辞掷硬币再次落错
 
 - 本轮文案：`"...A token can be set with --token, or in the token file at %s..."`（与 run8 同风格）；重跑轮选了保留原骨架的 `"--api-key or at {path}"` 并通过。
 - 三样本 1 中 2 → 措辞选择确认为随机事件，题面自相矛盾（problem_statement 指向 URL 暗示、requirements 明文 --token）使模型无稳定锚点。
 
-### 9.3 ansible/a26c325 —— test_Request.py::test_open_url，相对基准的回归
+### 10.3 ansible/a26c325 —— test_Request.py::test_open_url，相对基准的回归
 
 - 必过集合 42 项中仅此 1 项 AssertionError（重试 3 次仍挂）；基准轮 run8 曾 0/42 通过。
 - **根因（读本轮 trace 确认）**：use_netrc 贯通本身完整正确（Request/open/fetch_url/url_get/uri/get_url/url-lookup 七层，30 次编辑）；失败在调用位置的取舍——spec 写"在创建 Request 时转发该值"，agent 反复比较后选择 `Request(use_netrc=use_netrc).open(...)` 并自认"两种解释都行，这是最安全的"，而 gold 的 test_open_url 断言 `open()` 调用 kwargs 含 use_netrc（upstream 写法 `.open(..., use_netrc=...)`）。属规格字面话与 upstream 惯例的又一次精确字符串掷硬币，与压缩改动无关。
 - 归因结论：本轮三个失败全部是精确字符串级决策失误（两处 upstream 记忆缺失、一处 spec 字面解读），无一由 V6 压缩引起；V6 的行为影响限于成本/时延面。
 
-## 10. 统计方法说明
+## 11. 统计方法说明
 
 - **每题计一次有效尝试**：通过题取首次通过的尝试；未通过题取最后一次有效评分（官方 verifier 链路）。因崩溃、OOM、编排器故障、verifier 缺陷或模型行为异常而无效的尝试不计入时间与成本。
 - 尝试按 hostlog 运行 ID 分组，本报告只含本轮尝试。

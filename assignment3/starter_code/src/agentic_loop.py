@@ -228,8 +228,13 @@ def _tool_call_summary(name: str, arguments_json: str) -> str:
     if name == "search":
         return (f"search: {args.get('mode', '')} {str(args.get('query', ''))[:60]!r} "
                 f"in {args.get('path', '.')}")
-    if name in {"edit_file", "create_file"}:
-        return f"{name}: {args.get('path', '')}"
+    if name == "edit_file":
+        hunks = args.get("files") or []
+        paths = [str(h.get("path", "")) for h in hunks if isinstance(h, dict)]
+        shown = ", ".join(paths[:3]) + (f" (+{len(paths) - 3})" if len(paths) > 3 else "")
+        return f"edit_file: {len(hunks)} hunk(s) -> {shown}"
+    if name == "create_file":
+        return f"create_file: {args.get('path', '')}"
     if name == "read_archived_output":
         return (f"read_archived_output: {args.get('output_id', '')} "
                 f"[{args.get('start_line', 1)}-{args.get('end_line', 'EOF')}]")

@@ -107,7 +107,8 @@ def part_a():
     # 5. layer-2 reset + state checkpoint
     tm = new_memory()
     b = add_tool(tm, "bash", "z" * 3000, {"command": "go test ./..."})
-    add_tool(tm, "edit_file", "ok", {"path": "/app/main.go"})
+    add_tool(tm, "edit_file", '{"edited":["/app/main.go"]}',
+             {"files": [{"path": "/app/main.go", "old_string": "a", "new_string": "b"}]})
     tm.current_plan = [{"step": "verify"}]
     tm._compact_memory = lambda client, model_id: ("SUMMARY", {"prompt_tokens": 1})
     applied, _ = tm.apply_summary(None, "m")
@@ -117,6 +118,95 @@ def part_a():
     assert "go test" in content and "SUMMARY" in content
     assert tm._tokens_at_last_archive == 0 and tm.prompt_tokens == 0
     print("  5. layer-2 state checkpoint ...... ok")
+
+    # 6. read_file source cap: ReadFileTool.execute returns a leading page
+    #    + forward-continuation hint; memory.py has no read_file branch.
+    from src.tools import ReadFileTool
+
+    class FakeSb:
+        def __init__(self, text):
+            self.text = text
+
+        def read_text(self, path, start=1, end=None):
+            return self.text
+
+    big_read = "\n".join(f"{i:>4}  line_{i} = {'x' * 40}" for i in range(1, 400))
+    mid_read = "\n".join(f"{i:>4}  y_{i}" for i in range(1, 80))          # ~1.1K chars
+    tool = ReadFileTool()
+    assert tool.execute(FakeSb(mid_read), {"path": "/app/m.py"}, None) == mid_read, \
+        "reads under the cap stay verbatim"
+    page = tool.execute(FakeSb(big_read), {"path": "/app/big.py"}, None)
+    assert "continue with start_line=" in page and "showing lines 1-" in page
+    assert page.startswith("   1  line_1") and big_read.splitlines()[-1] not in page
+    assert len(page) < len(big_read) / 4
+    m = re.search(r"continue with start_line=(\d+)", page)
+    assert m and int(m.group(1)) == page[:m.start()].count("\n") + 1
+    page50 = tool.execute(FakeSb(big_read), {"path": "/app/big.py", "start_line": 50}, None)
+    assert "showing lines 50-" in page50 and "continue with start_line=" in page50
+    tm = new_memory()
+    assert tm.record_tool_result("r1", "read_file", page, {"path": "/app/big.py"}) is None, \
+        "no born-preview branch for read_file"
+    tm.messages = [msg("system", "S"), msg("user", "U"),
+                   msg("tool", "[tool_result {}]\n" + page, tool_call_id="r1")]
+    tm.tool_results = {"r1": ("read_file", page)}
+    tm.prompt_tokens = 45000
+    n = tm.compact_tool_outputs()
+    assert n == 1 and tm.messages[2]["content"].startswith("[Archived tool output ref:"), \
+        "batch should shrink the tool page to the standard archive form"
+    print("  6. read_file source cap ...... ok")
+
+    # 7. do_edit_batch atomicity: all hunks validate against evolving content
+    #    before any write; one bad hunk rolls back the whole batch (all files).
+    import tempfile
+    from src import sandbox_server as srv
+    with tempfile.TemporaryDirectory() as root:
+        srv.ROOT = root
+        srv.WORK_ROOT = os.path.join(root, "work")
+        os.makedirs(srv.WORK_ROOT, exist_ok=True)
+        with open(os.path.join(root, "a.py"), "w") as fh:
+            fh.write("x1\nx2\nx3\n")
+        with open(os.path.join(root, "b.py"), "w") as fh:
+            fh.write("keep\n")
+        # happy path: two hunks in a.py (sequential on evolving content) + b.py
+        res = srv.do_edit_batch([
+            {"path": "a.py", "old_string": "x1", "new_string": "y1"},
+            {"path": "a.py", "old_string": "x3", "new_string": "y3"},
+            {"path": "b.py", "old_string": "keep", "new_string": "changed"},
+        ], root)
+        assert res["hunks"] == 3 and sorted(res["edited"]) == ["a.py", "b.py"]
+        assert open(os.path.join(root, "a.py")).read() == "y1\nx2\ny3\n"
+        # rollback: valid first hunk + ambiguous second -> nothing written
+        before_a = open(os.path.join(root, "a.py")).read()
+        before_b = open(os.path.join(root, "b.py")).read()
+        try:
+            srv.do_edit_batch([
+                {"path": "a.py", "old_string": "y1", "new_string": "z1"},
+                {"path": "b.py", "old_string": "nope", "new_string": "q"},
+            ], root)
+            raise AssertionError("batch should have failed on missing old_string")
+        except srv.PathError as err:
+            assert "nope" in str(err) or "b.py" in str(err)
+        assert open(os.path.join(root, "a.py")).read() == before_a, "a.py must be untouched on rollback"
+        assert open(os.path.join(root, "b.py")).read() == before_b, "b.py must be untouched on rollback"
+        # replace_all: every occurrence in one hunk; still atomic with others
+        with open(os.path.join(root, "c.py"), "w") as fh:
+            fh.write("foo bar\nkeep\nfoo baz\nfoo qux\n")
+        srv.do_edit_batch([
+            {"path": "c.py", "old_string": "foo ", "new_string": "quux ", "replace_all": True},
+            {"path": "c.py", "old_string": "keep", "new_string": "held"},
+        ], root)
+        assert open(os.path.join(root, "c.py")).read() == "quux bar\nheld\nquux baz\nquux qux\n"
+        before_c = open(os.path.join(root, "c.py")).read()
+        try:
+            srv.do_edit_batch([
+                {"path": "c.py", "old_string": "held", "new_string": "gone"},
+                {"path": "c.py", "old_string": "absent", "new_string": "x", "replace_all": True},
+            ], root)
+            raise AssertionError("replace_all with zero matches must fail")
+        except srv.PathError as err:
+            assert "absent" in str(err)
+        assert open(os.path.join(root, "c.py")).read() == before_c, "failed batch must not write"
+    print("  7. edit_batch atomicity ...... ok")
     print("Part A passed.\n")
 
 

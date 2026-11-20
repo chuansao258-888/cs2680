@@ -53,10 +53,17 @@ class TaskMemory:
         path = str(args.get("path", ""))
         if tool_name == "read_file" and path:
             self.files_read[path] = self.files_read.get(path, 0) + 1
-        elif tool_name in ("edit_file", "create_file") and path:
+        elif tool_name == "edit_file":
+            for hunk in args.get("files") or []:
+                if not isinstance(hunk, dict):
+                    continue
+                hp = str(hunk.get("path", ""))
+                if hp and hp not in self.files_modified:
+                    self.files_modified.append(hp)
+        elif tool_name == "create_file" and path:
             if path not in self.files_modified:
                 self.files_modified.append(path)
-            if tool_name == "create_file" and path.startswith("/work"):
+            if path.startswith("/work"):
                 self.scratch_files.add(path)
         elif tool_name == "bash":
             self.recent_commands.append(

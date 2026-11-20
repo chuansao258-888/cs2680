@@ -11,6 +11,8 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any
 
+from .config import READ_MAX_CHARS
+
 
 def _reads_files_via_bash(command: str) -> bool:
     """True when a shell segment prints file contents (cat/head/tail/sed -n...).
@@ -47,7 +49,8 @@ class ReadFileTool(Tool):
         "name": name,
         "description": (
             "Read numbered lines from a text file. Without end_line, returns the "
-            "entire file from start_line to EOF."
+            "entire file from start_line to EOF. Very large results are returned "
+            "as a leading page; continue with the reported start_line."
         ),
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string", "description": "Path relative to the working directory."},
@@ -57,7 +60,20 @@ class ReadFileTool(Tool):
     }}
 
     def execute(self, sb, args, task_memory):
-        return sb.read_text(args["path"], args.get("start_line", 1), args.get("end_line"))
+        start = args.get("start_line", 1)
+        text = sb.read_text(args["path"], start, args.get("end_line"))
+        if len(text) <= READ_MAX_CHARS:
+            return text
+        # Leading page, line aligned; the file is the source, so the model
+        # just pages forward with the reported start_line.
+        cut = text.rfind("\n", 0, READ_MAX_CHARS)
+        if cut < 200:
+            cut = READ_MAX_CHARS
+        head = text[:cut]
+        shown = head.count("\n") + 1
+        return (head
+                + f"\n... [showing lines {start}-{start + shown - 1} of {start + text.count(chr(10))}; "
+                  f"continue with start_line={start + shown}] ...")
 
 
 class ReadArchivedOutputTool(Tool):
@@ -105,16 +121,26 @@ class EditFileTool(Tool):
     name = "edit_file"
     schema = {"type": "function", "function": {
         "name": name,
-        "description": "Replace one exact occurrence of text in a file.",
+        "description": (
+            "Apply exact-match edits as one atomic batch: each old_string "
+            "must appear exactly once (or set replace_all to change every "
+            "occurrence); hunks apply in order to the evolving content and "
+            "nothing is written unless all validate. Put every hunk of one "
+            "logical change in a single call, across files if needed."
+        ),
         "parameters": {"type": "object", "properties": {
-            "path": {"type": "string"},
-            "old_string": {"type": "string"},
-            "new_string": {"type": "string"},
-        }, "required": ["path", "old_string", "new_string"]},
+            "files": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
+                "path": {"type": "string", "description": "Path relative to the working directory."},
+                "old_string": {"type": "string"},
+                "new_string": {"type": "string"},
+                "replace_all": {"type": "boolean",
+                                "description": "Replace every occurrence instead of requiring a unique match."},
+            }, "required": ["path", "old_string", "new_string"]}},
+        }, "required": ["files"]},
     }}
 
     def execute(self, sb, args, task_memory):
-        return sb.edit_text(args["path"], args["old_string"], args["new_string"])
+        return sb.edit_batch(args.get("files") or [])
 
 
 class CreateFileTool(Tool):

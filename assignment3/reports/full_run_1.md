@@ -155,7 +155,7 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 ![tool_calls](charts/tool_calls.png)
 
-![tool_time](charts/tool_time.png)
+![tool_time_total](charts/tool_time_total.png)
 
 ![time_composition](charts/time_composition.png)
 

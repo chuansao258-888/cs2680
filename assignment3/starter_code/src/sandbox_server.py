@@ -229,23 +229,52 @@ def do_search(mode: str, query: str, path: str, cwd: str) -> dict:
     return {"content": "\n".join(matches) if matches else "No matches found."}
 
 
-def do_edit(path: str, old_string: str, new_string: str, cwd: str) -> dict:
-    if not isinstance(old_string, str) or not isinstance(new_string, str):
-        raise PathError("old_string and new_string must be strings")
-    real = resolve(path, cwd)
-    if not os.path.isfile(real):
-        raise PathError(f"file not found: {path}")
-    try:
-        with open(real, "r", encoding="utf-8", errors="replace") as file:
-            content = file.read()
-        count = content.count(old_string)
-        if count != 1:
-            raise PathError(f"old_string appeared {count} times; expected exactly once")
-        with open(real, "w", encoding="utf-8") as file:
-            file.write(content.replace(old_string, new_string, 1))
-    except OSError as e:
-        raise PathError(f"could not edit {path}: {e}")
-    return {"path": path, "replaced": True}
+def do_edit_batch(files, cwd: str) -> dict:
+    """Apply a batch of exact-match edits atomically.
+
+    Every hunk is checked against the evolving in-memory content (old_string
+    must appear exactly once, hunks apply in order); nothing is written unless
+    the whole batch validates. Repeated paths merge into one file."""
+    if not isinstance(files, list) or not files:
+        raise PathError("edit batch must be a non-empty list of hunks")
+    staged = {}
+    order = []
+    for hunk in files:
+        if not isinstance(hunk, dict):
+            raise PathError("each hunk needs path/old_string/new_string")
+        path = hunk.get("path", "")
+        old, new = hunk.get("old_string"), hunk.get("new_string")
+        if not isinstance(old, str) or not isinstance(new, str):
+            raise PathError("old_string and new_string must be strings")
+        real = resolve(path, cwd)
+        if not os.path.isfile(real):
+            raise PathError(f"file not found: {path}")
+        if real not in staged:
+            try:
+                with open(real, "r", encoding="utf-8", errors="replace") as fh:
+                    content = fh.read()
+            except OSError as e:
+                raise PathError(f"could not read {path}: {e}")
+            staged[real] = [path, content]
+            order.append(real)
+        count = staged[real][1].count(old)
+        if hunk.get("replace_all"):
+            if count == 0:
+                raise PathError(f"{path}: old_string not found (replace_all): {old[:60]!r}")
+            staged[real][1] = staged[real][1].replace(old, new)
+        else:
+            if count != 1:
+                raise PathError(f"{path}: old_string appeared {count} times; expected exactly once "
+                                "(add context or set replace_all)")
+            staged[real][1] = staged[real][1].replace(old, new, 1)
+    for real in order:
+        path, content = staged[real]
+        try:
+            with open(real, "w", encoding="utf-8") as fh:
+                fh.write(content)
+        except OSError as e:
+            raise PathError(f"could not write {path}: {e}")
+    return {"edited": [staged[real][0] for real in order], "hunks": len(files)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -299,8 +328,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, do_search(
                     req.get("mode"), req.get("query"), req.get("path", "."), cwd))
             if self.path == "/edit":
-                return self._send(200, do_edit(
-                    req.get("path", ""), req.get("old_string"), req.get("new_string"), cwd))
+                return self._send(200, do_edit_batch(req.get("files"), cwd))
             return self._send(404, {"error": f"unknown route {self.path}"})
         except PathError as e:
             return self._send(400, {"error": str(e)})
