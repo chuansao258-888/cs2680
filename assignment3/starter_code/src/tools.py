@@ -122,11 +122,12 @@ class EditFileTool(Tool):
     schema = {"type": "function", "function": {
         "name": name,
         "description": (
-            "Apply exact-match edits as one atomic batch: each old_string "
-            "must appear exactly once (or set replace_all to change every "
-            "occurrence); hunks apply in order to the evolving content and "
-            "nothing is written unless all validate. Put every hunk of one "
-            "logical change in a single call, across files if needed."
+            "Apply a batch of exact-match edits. Each old_string must appear "
+            "exactly once in its file (or set replace_all for every "
+            "occurrence); hunks apply in order to the evolving content. Valid "
+            "hunks are applied and every hunk's outcome is reported, so a "
+            "rejected hunk can be fixed alone without redoing the rest. Put "
+            "every hunk of one logical change in a single call, across files."
         ),
         "parameters": {"type": "object", "properties": {
             "files": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {

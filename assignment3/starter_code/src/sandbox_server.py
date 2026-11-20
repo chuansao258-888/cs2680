@@ -230,51 +230,80 @@ def do_search(mode: str, query: str, path: str, cwd: str) -> dict:
 
 
 def do_edit_batch(files, cwd: str) -> dict:
-    """Apply a batch of exact-match edits atomically.
+    """Apply a batch of exact-match edits with per-hunk results.
 
-    Every hunk is checked against the evolving in-memory content (old_string
-    must appear exactly once, hunks apply in order); nothing is written unless
-    the whole batch validates. Repeated paths merge into one file."""
+    Each hunk is checked against the evolving in-memory content (old_string
+    must appear exactly once, or every occurrence with replace_all). Valid
+    hunks are applied; a hunk that does not match is reported with its index,
+    path and reason, and skipped. Files with at least one applied hunk are
+    written once. The result lists every hunk's outcome so the model can fix
+    just the rejected ones in one round-trip."""
     if not isinstance(files, list) or not files:
         raise PathError("edit batch must be a non-empty list of hunks")
     staged = {}
     order = []
-    for hunk in files:
+    results = []
+    for i, hunk in enumerate(files):
         if not isinstance(hunk, dict):
-            raise PathError("each hunk needs path/old_string/new_string")
+            results.append({"index": i, "status": "error",
+                            "error": "hunk must be an object with path/old_string/new_string"})
+            continue
         path = hunk.get("path", "")
         old, new = hunk.get("old_string"), hunk.get("new_string")
         if not isinstance(old, str) or not isinstance(new, str):
-            raise PathError("old_string and new_string must be strings")
-        real = resolve(path, cwd)
+            results.append({"index": i, "path": path, "status": "error",
+                            "error": "old_string and new_string must be strings"})
+            continue
+        try:
+            real = resolve(path, cwd)
+        except PathError as e:
+            results.append({"index": i, "path": path, "status": "error", "error": str(e)})
+            continue
         if not os.path.isfile(real):
-            raise PathError(f"file not found: {path}")
+            results.append({"index": i, "path": path, "status": "error",
+                            "error": f"file not found: {path}"})
+            continue
         if real not in staged:
             try:
                 with open(real, "r", encoding="utf-8", errors="replace") as fh:
                     content = fh.read()
             except OSError as e:
-                raise PathError(f"could not read {path}: {e}")
+                results.append({"index": i, "path": path, "status": "error",
+                                "error": f"could not read {path}: {e}"})
+                continue
             staged[real] = [path, content]
             order.append(real)
         count = staged[real][1].count(old)
         if hunk.get("replace_all"):
             if count == 0:
-                raise PathError(f"{path}: old_string not found (replace_all): {old[:60]!r}")
+                results.append({"index": i, "path": path, "status": "error",
+                                "error": f"old_string not found (replace_all): {old[:60]!r}"})
+                continue
             staged[real][1] = staged[real][1].replace(old, new)
+            results.append({"index": i, "path": path, "status": "ok", "replaced": count})
         else:
             if count != 1:
-                raise PathError(f"{path}: old_string appeared {count} times; expected exactly once "
-                                "(add context or set replace_all)")
+                results.append({"index": i, "path": path, "status": "error",
+                                "error": f"old_string appeared {count} times; expected exactly once "
+                                         f"(add context or set replace_all): {old[:60]!r}"})
+                continue
             staged[real][1] = staged[real][1].replace(old, new, 1)
+            results.append({"index": i, "path": path, "status": "ok"})
+    wrote = []
     for real in order:
         path, content = staged[real]
         try:
             with open(real, "w", encoding="utf-8") as fh:
                 fh.write(content)
+            wrote.append(path)
         except OSError as e:
-            raise PathError(f"could not write {path}: {e}")
-    return {"edited": [staged[real][0] for real in order], "hunks": len(files)}
+            for r in results:
+                if r.get("path") == path and r["status"] == "ok":
+                    r["status"] = "error"
+                    r["error"] = f"could not write {path}: {e}"
+    applied = sum(1 for r in results if r["status"] == "ok")
+    return {"results": results, "applied": applied,
+            "rejected": len(results) - applied, "edited": wrote}
 
 
 class Handler(BaseHTTPRequestHandler):

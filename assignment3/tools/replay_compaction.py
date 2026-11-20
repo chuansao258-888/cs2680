@@ -173,40 +173,43 @@ def part_a():
             {"path": "a.py", "old_string": "x3", "new_string": "y3"},
             {"path": "b.py", "old_string": "keep", "new_string": "changed"},
         ], root)
-        assert res["hunks"] == 3 and sorted(res["edited"]) == ["a.py", "b.py"]
+        assert res["applied"] == 3 and sorted(res["edited"]) == ["a.py", "b.py"]
+        assert all(r["status"] == "ok" for r in res["results"])
         assert open(os.path.join(root, "a.py")).read() == "y1\nx2\ny3\n"
-        # rollback: valid first hunk + ambiguous second -> nothing written
-        before_a = open(os.path.join(root, "a.py")).read()
-        before_b = open(os.path.join(root, "b.py")).read()
-        try:
-            srv.do_edit_batch([
-                {"path": "a.py", "old_string": "y1", "new_string": "z1"},
-                {"path": "b.py", "old_string": "nope", "new_string": "q"},
-            ], root)
-            raise AssertionError("batch should have failed on missing old_string")
-        except srv.PathError as err:
-            assert "nope" in str(err) or "b.py" in str(err)
-        assert open(os.path.join(root, "a.py")).read() == before_a, "a.py must be untouched on rollback"
-        assert open(os.path.join(root, "b.py")).read() == before_b, "b.py must be untouched on rollback"
-        # replace_all: every occurrence in one hunk; still atomic with others
+        # per-hunk results: valid hunk applies, bad hunk reported with index,
+        # the good file is still written (no all-or-nothing)
+        res = srv.do_edit_batch([
+            {"path": "a.py", "old_string": "y1", "new_string": "z1"},
+            {"path": "b.py", "old_string": "nope", "new_string": "q"},
+        ], root)
+        assert res["applied"] == 1 and res["rejected"] == 1
+        assert res["results"][0]["status"] == "ok"
+        assert res["results"][1]["status"] == "error" and res["results"][1]["index"] == 1
+        assert "nope" in res["results"][1]["error"]
+        assert open(os.path.join(root, "a.py")).read() == "z1\nx2\ny3\n", "valid hunk applied"
+        assert open(os.path.join(root, "b.py")).read() == "changed\n", "bad hunk left file as-is"
+        # replace_all: every occurrence in one hunk, mixed with a single hunk
         with open(os.path.join(root, "c.py"), "w") as fh:
             fh.write("foo bar\nkeep\nfoo baz\nfoo qux\n")
-        srv.do_edit_batch([
+        res = srv.do_edit_batch([
             {"path": "c.py", "old_string": "foo ", "new_string": "quux ", "replace_all": True},
             {"path": "c.py", "old_string": "keep", "new_string": "held"},
         ], root)
+        assert res["applied"] == 2 and res["results"][0]["replaced"] == 3
         assert open(os.path.join(root, "c.py")).read() == "quux bar\nheld\nquux baz\nquux qux\n"
-        before_c = open(os.path.join(root, "c.py")).read()
-        try:
-            srv.do_edit_batch([
-                {"path": "c.py", "old_string": "held", "new_string": "gone"},
-                {"path": "c.py", "old_string": "absent", "new_string": "x", "replace_all": True},
-            ], root)
-            raise AssertionError("replace_all with zero matches must fail")
-        except srv.PathError as err:
-            assert "absent" in str(err)
-        assert open(os.path.join(root, "c.py")).read() == before_c, "failed batch must not write"
-    print("  7. edit_batch atomicity ...... ok")
+        # replace_all zero-match is one rejected hunk; the valid sibling still applies
+        res = srv.do_edit_batch([
+            {"path": "c.py", "old_string": "held", "new_string": "gone"},
+            {"path": "c.py", "old_string": "absent", "new_string": "x", "replace_all": True},
+        ], root)
+        assert res["applied"] == 1 and res["rejected"] == 1
+        assert res["results"][1]["status"] == "error" and "absent" in res["results"][1]["error"]
+        assert open(os.path.join(root, "c.py")).read() == "quux bar\ngone\nquux baz\nquux qux\n", \
+            "valid hunk applied despite sibling rejection"
+        # empty path is reported per-hunk, not a whole-batch exception
+        res = srv.do_edit_batch([{"old_string": "a", "new_string": "b"}], root)
+        assert res["applied"] == 0 and res["results"][0]["status"] == "error"
+    print("  7. edit_batch per-hunk results ...... ok")
     print("Part A passed.\n")
 
 
