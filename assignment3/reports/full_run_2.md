@@ -12,7 +12,7 @@
 ## 2. Agent 配置与设计
 
 - **参照版本**：git `a731a16`（src/ 含未提交修改，见下）
-- src 指纹（sha256 前 16 位）：`9f11234ff2055239`
+- src 指纹（sha256 前 16 位）：`35f94e0bbf424fb2`
 
 | 配置项 | 值 |
 |---|---|
@@ -60,16 +60,27 @@
 **未提交修改**（忽略换行符差异）：
 ```
 assignment3/starter_code/src/agentic_loop.py
-assignment3/starter_code/src/config.py
-assignment3/starter_code/src/memory.py
-assignment3/starter_code/src/prompts.py
 ```
 
 ## 3. 版本变更
 
-本轮：git `a731a16`，指纹 `9f11234ff2055239`（含未提交修改）。
+本轮：git `a731a16`，指纹 `35f94e0bbf424fb2`（含未提交修改）。
 
 **相对 Full Run 1**（git `a731a16`，指纹 `3da72e34d286f470`）：代码有变更但不影响 agent 行为（仅 run_end 原因标注（iteration_limit/no_choices），属 trace 上报层，不参与决策）。
+提交：
+```
+68c363f feat(a3): batch compaction with prefix-cache stability, unified config, tools/reports layout
+```
+
+文件变更：
+```
+assignment3/starter_code/src/agentic_loop.py |  34 ++-
+ assignment3/starter_code/src/config.py       |  94 ++++--
+ assignment3/starter_code/src/memory.py       | 413 ++++++++++++++++-----------
+ assignment3/starter_code/src/prompts.py      | 191 +++++++------
+ 4 files changed, 442 insertions(+), 290 deletions(-)
+```
+
 未提交修改（相对该参照提交）：
 ```
 assignment3/starter_code/src/agentic_loop.py |  34 ++++--
@@ -131,8 +142,8 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 | 题目 | 层1 次数 | 层1 发生分布 | 层2 次数 | 层2 发生轮 |
 |---|---:|---|---:|---|
-| ansible/83909bf | 19 | turn 14–52 共 19 次，峰值 turn 14（×7） | 0 | 无 |
-| qutebrowser/21b426b | 29 | turn 12–64 共 29 次，峰值 turn 12（×3） | 1 | turn 68 |
+| ansible/83909bf | — | — | 0 | 无 |
+| qutebrowser/21b426b | — | — | 1 | turn 68 |
 
 层 1 触发阈值 prompt_tokens ≥ 24K、层 2 ≥ 56K（memory.py）。层 1 计数依赖 agent.log 的 live 输出（run5 该目录丢失，四题记为 —）；层 2 来自 latency.jsonl，始终可靠。
 

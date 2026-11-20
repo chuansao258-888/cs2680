@@ -183,7 +183,9 @@ def config_snapshot():
     import src.config as c
     keys = ("MAX_ITERATIONS", "MAX_OPEN_TASKS", "API_RETRIES", "API_BACKOFF_S",
             "API_BACKOFF_MAX_S", "PRESERVE_THINKING", "MODEL_EXPERT",
-            "MODEL_STANDARD", "MODEL_STARTER", "MODEL_EXTRA_BODY")
+            "MODEL_STANDARD", "MODEL_STARTER", "MODEL_EXTRA_BODY",
+            "TOOL_COMPACT_THRESHOLD", "ARCHIVE_HYSTERESIS_TOKENS", "WINDOW_TOKEN_BUDGET",
+            "BASH_INSERT_MIN_CHARS", "SUMMARY_COMPACT_THRESHOLD")
     return {k: getattr(c, k) for k in keys}
 
 
@@ -216,6 +218,46 @@ AGENT_DESIGN_PROSE = """**架构（三层）**
 **系统提示词（prompts.py）**：预算、自主性、ground-truth（否定可靠记忆、防 PR-recall 螺旋）、行动偏向、工具纪律、验证六段；参考 openai/codex 编码提示词重写。
 
 **追踪**：每任务 latency.jsonl（逐调用模型/延迟/token/缓存）+ run.jsonl（api_request/tool_call/tool_result/run_end）。"""
+
+_V3_COMPACT = """**上下文管理（memory.py，两层压缩）**
+
+- 层 1（prompt_tokens ≥ 24K）：最近 12 条之外的工具输出归档，历史中保留头 400 + 尾 800 字符预览与归档引用；全文经 `read_archived_output` 按行号取回。
+- 层 2（≥ 56K）：全量摘要 compaction，历史替换为 system + 摘要 + 当前计划 + git status/diff 快照（SUMMARY_CONTEXT_PROMPT）。"""
+
+AGENT_DESIGN_PROSE_V3 = AGENT_DESIGN_PROSE.replace(_V3_COMPACT, """**上下文管理（memory.py，两层压缩 · V6 重设计）**
+
+- 层 1 批量归档：prompt_tokens ≥ 40K 且距上次归档增长 ≥ 8K 才触发；活窗口 = 尾部累计 ≤ 8K token 的工具输出（无条数约束）；原始 ≥ 2× 预览（1200 字符）才归档为 600 字符预览（头 100/尾 500）+ 引用；水位线以下永不改写——两次批量之间请求前缀逐字节稳定，最大化前缀缓存命中。
+- bash 出生即预览：≥ 2000 字符的 bash 输出在插入时即归档（头 100/尾 900，全文可 `read_archived_output` 按行取回），此后永不改写；trace 仍记全文。
+- 层 2（≥ 56K）：全量摘要 compaction，历史替换为 system + 摘要 + 当前计划 + git status/diff 快照 + **结构化状态块**（已读/已改文件、scratch、最近命令、归档索引），压缩后取回通路不断头。""")
+
+# Compaction-table footnote, per scheme generation.
+COMPACT_NOTE_V1 = ("层 1 触发阈值 prompt_tokens ≥ 24K、层 2 ≥ 56K（memory.py）。层 1 计数依赖 agent.log 的 live 输出"
+                   "（run5 该目录丢失，四题记为 —）；层 2 来自 latency.jsonl，始终可靠。")
+COMPACT_NOTE_V3 = ("层 1：≥40K 且距上次归档 ≥8K 触发；窗口 = 尾部 ≤8K token；原始 ≥1200 字符才归档；bash ≥2000 字符出生即预览"
+                   "（不计入层 1 事件）；层 2 ≥56K（config.py）。层 1 计数依赖 agent.log；层 2 来自 latency.jsonl。")
+
+# Hand-written failure analyses for later runs (run_no -> lines).
+RUN_FAILURE_TEXTS = {
+    3: [
+        "本轮 12/15，三道未过均为只差 1 个必过测试的精确字符串近失；与基准轮（Full Run 1）对照可分离随机性与确定性：",
+        "",
+        "### {n}.1 qutebrowser/21b426b —— test_repr，第三次逐字节相同的选择",
+        "",
+        "- 补丁 repr 实现与 run8、重跑轮完全一致：`values=list(self._vmap.values())`，而官方测试锁定 gold 的 `vmap=odict_values([...])`。",
+        "- **跨两个代码版本、三次尝试零变化 → 确定性偏差实锤**：V6 上下文重设计（含压缩后状态块）也未能改变该选择。唯一已知有效路径是近似失败重试（回喂失败测试名/断言差异）。",
+        "",
+        "### {n}.2 ansible/83909bfa —— test_api_no_auth_but_required，措辞掷硬币再次落错",
+        "",
+        "- 本轮文案：`\"...A token can be set with --token, or in the token file at %s...\"`（与 run8 同风格）；重跑轮选了保留原骨架的 `\"--api-key or at {path}\"` 并通过。",
+        "- 三样本 1 中 2 → 措辞选择确认为随机事件，题面自相矛盾（problem_statement 指向 URL 暗示、requirements 明文 --token）使模型无稳定锚点。",
+        "",
+        "### {n}.3 ansible/a26c325 —— test_Request.py::test_open_url，相对基准的回归",
+        "",
+        "- 必过集合 42 项中仅此 1 项 AssertionError（重试 3 次仍挂）；基准轮 run8 曾 0/42 通过。",
+        "- **根因（读本轮 trace 确认）**：use_netrc 贯通本身完整正确（Request/open/fetch_url/url_get/uri/get_url/url-lookup 七层，30 次编辑）；失败在调用位置的取舍——spec 写\"在创建 Request 时转发该值\"，agent 反复比较后选择 `Request(use_netrc=use_netrc).open(...)` 并自认\"两种解释都行，这是最安全的\"，而 gold 的 test_open_url 断言 `open()` 调用 kwargs 含 use_netrc（upstream 写法 `.open(..., use_netrc=...)`）。属规格字面话与 upstream 惯例的又一次精确字符串掷硬币，与压缩改动无关。",
+        "- 归因结论：本轮三个失败全部是精确字符串级决策失误（两处 upstream 记忆缺失、一处 spec 字面解读），无一由 V6 压缩引起；V6 的行为影响限于成本/时延面。",
+    ],
+}
 
 
 def scan_behavior(tdir):
@@ -470,6 +512,23 @@ BEHAVIOR_NOTES = {
         "qutebrowser/21b426b": "思维明确注意到\"可见测试期望 values=[...]，但隐藏测试可能已更新\"，仍锚定旧可见测试格式，做出与 Full Run 1 完全相同的列表归一化（values=list(self._vmap.values())）；85 轮中 bash 64 次，多耗在全量套件崩溃排查与 stash 对比，首编辑 turn 9。零反馈重跑复现同一格式选择，证实该偏差是确定性的。",
         "ansible/83909bf": "与 Full Run 1 的重写相反：本次保留原报错骨架、仅删除 login 子句（\"...--api-key or at {token path}\"），恰好命中 gold 前缀；全程仅 2 次 edit_file（Full Run 1 为 17 次），首编辑 turn 26，调研含对上游 PR 历史的回忆。53 轮、12.9 min、0/150 通过——最小变更纪律直接决定精确字符串题的成败。",
     },
+    3: {
+        "internetarchive/53d376b": "46 轮（bash28/read16/edit5），首编辑 turn 20，探索→定点修改→pytest 节奏。两批归档后约 turn 20 余触发摘要压缩；agent 察觉归档窗口把 load_book.py 全文读截断（import 行不完整），thinking 明确质疑后经 2 次 read_archived_output + 重读真实行恢复，未产生错误编辑——对压缩伪影有自觉检测能力，0/8 通过。",
+        "flipt-io/2ca5dfb": "74 轮、bash 49 次的 Go 改-编译-测循环，首编辑 turn 13。两批归档后约 turn 57 摘要压缩（prompt 缩至 ~6.7K），压缩后立即重跑 go test、重读 metrics_test.go 做有意再校准而非迷失；处理了 TestLoad 的 Default()/Load 一致性，0/2 通过。",
+        "future-architect/5af1a22": "43 轮，首编辑 turn 13，一批归档 + 一次摘要压缩（约 turn 30），压缩后行为连贯。对\"是否可改既有测试\"边界判断正确（因签名变化更新 scanner 测试并补新用例），0/11 通过，节奏紧凑无冗余。",
+        "gravitational/1316e67": "70 轮，首编辑很早（turn 7）、edit 21 次边理解边改；两批归档且摘要压缩几乎同轮完成，压缩后未见重复读取。亮点：scratch 假服务器验证 spec 行为后删除临时文件，自我约束好，0/5 通过（基准轮此题贴 99 轮上限，本轮 70 轮收敛）。",
+        "element-hq/5dfde12": "97 轮近上限、126 次调用、bash 67，首编辑迟至 turn 43——TS 大库前期调研过重是最大低效点。三批归档 + 一次摘要压缩（约 turn 56），压缩后重读源文件再续改，应对正常；0/61 通过但轮次/工具数全场最高，性价比偏低。",
+        "ansible/f327e65": "43 轮、首编辑 turn 15，全程无批量归档、仅一次出生预览回读，是轻压缩样本；正确诊断 galaxy 依赖循环导入为既有问题，175 测试全过，模型时间仅 7.9 min（基准轮 60.6 min 的同题），效率标杆。",
+        "qutebrowser/c580ebf": "98 轮、bash 65，首编辑 turn 7；两批大归档（10+4）+ 一次摘要压缩（约 turn 60），压缩后 flake8/测试双轨继续，3 次 read_archived_output 找回旧输出。测试面铺得过宽（webengine/webkit/end2end 逐项排除），但结论纪律好，0/202 通过。",
+        "flipt-io/2eac0df": "56 轮、首编辑 turn 12，两批归档、未触发摘要压缩；对 analytics payload 的精确 map 断言逐处核对（三处出现点逐一处理），1 次归档回读；末尾自行判断不必加 CHANGELOG，0/3 通过，无返工。",
+        "qutebrowser/de4a1c1": "唯一撞 iteration_limit（99/100）的任务，114 次调用、首编辑 turn 8；压缩最密集（三批归档 + 一次摘要压缩约 turn 70，第 100 轮仍在归档），靠逐文件 pytest 循环自证后 0/123 通过——通过但验证阶段过长触顶，是本轮最大资源风险样本。",
+        "internetarchive/4a5d2a7": "全程最轻：15 轮、17 次调用、首编辑 turn 4、零归档事件；先自写复现脚本验证 get_statement_values 行为再动手，既改测试又验证，9 个测试全过。",
+        "gravitational/89f0432": "83 轮、edit 22 / bash 51，首编辑 turn 4；两批归档但从未摘要压缩，压缩后无迷失。ioutil→io 全库清扫 + fake-server 测试耗时较多——只考 1 个测试用 83 轮，是\"通过但开销/收益失衡\"的代表。",
+        "protonmail/944adbf": "18 轮、首编辑 turn 3、无批量归档；测试输出被预览截断时 thinking 明确说\"需要读完整归档输出\"，一次 read_archived_output 定位失败原因——直接验证了归档机制在关键排障时可用；0/10 通过，并对官方状态码措辞做了范围化解释。",
+        "ansible/a26c325": "63 轮、edit 30，两批归档、无摘要压缩，use_netrc 七层贯通完整；失败纯属调用位置的字符串级决策：在 `Request(use_netrc=..).open(..)` 与 upstream 的 `.open(..., use_netrc=..)` 之间选了前者并自认\"两种解释都行\"，gold mock 断言后者致 1/42（回归，基准轮通过）。",
+        "qutebrowser/21b426b": "45 轮、一批归档、无摘要压缩；_vmap 功能重构全对，thinking 近十段反复推演 repr 格式，明确枚举过 `self._vmap.values()`（odict_values）与 OrderedDict 两种渲染，但因\"无法回忆 upstream 提交\"以可见测试为唯一证据选定 `values=list(...)`——与前三次完全相同的决策路径与失败点，系统性而非随机；还顺手把可见 test_iter 改成 _vmap.values() 自洽。",
+        "ansible/83909bf": "49 轮、两批归档 + 3 次回读、无摘要压缩，login.py 删除与 CLI 拦截整体干净；失败在报错文案：thinking 试图回忆 upstream PR（#72759/#72795/#72826 均不确定）、自认\"not 100% confident\"后退回 requirement 字面措辞（--token/token file 风格），与 gold 的 `--api-key or at` 前缀差一（回归，重跑轮曾通过）。",
+    },
 }
 RUN_NOTES = {2: "对 Full Run 1 两道失败题（21b426b、83909bfa）的零反馈重跑，非全量运行。"}
 
@@ -518,6 +577,10 @@ def write_full_run_report(attempts, run_no=1, note=None):
         # freeze the baseline at its locked commit, not the live working tree
         locked = snaps.get("1", {}).get("version", {}).get("commit") or ver["commit"]
         ver = version_at_commit(locked)
+    elif str(run_no) in snaps:
+        # versions/config describe the code AT RUN TIME: frozen on first
+        # capture, never overwritten by later regenerations
+        ver, cfg = snaps[str(run_no)]["version"], snaps[str(run_no)]["config"]
     # comparison references: own previous run + the original Full Run 1
     refs = []
     if run_no > 1:
@@ -541,9 +604,14 @@ def write_full_run_report(attempts, run_no=1, note=None):
         "| 配置项 | 值 |",
         "|---|---|",
     ]
-    for k, v in cfg.items():
+    v3 = run_no >= 3
+    cfg_show = dict(cfg) if v3 else {k: v for k, v in cfg.items()
+                                     if k not in ("TOOL_COMPACT_THRESHOLD", "ARCHIVE_HYSTERESIS_TOKENS",
+                                                  "WINDOW_TOKEN_BUDGET", "BASH_INSERT_MIN_CHARS",
+                                                  "SUMMARY_COMPACT_THRESHOLD")}
+    for k, v in cfg_show.items():
         design.append(f"| {k} | `{json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, bool)) else v}` |")
-    design += ["", AGENT_DESIGN_PROSE]
+    design += ["", AGENT_DESIGN_PROSE_V3 if v3 else AGENT_DESIGN_PROSE]
     if ver["dirty"]:
         design += ["", "**未提交修改**（忽略换行符差异）：", "```", ver["dirty"], "```"]
     sections.append(("Agent 配置与设计", design))
@@ -699,7 +767,7 @@ def write_full_run_report(attempts, run_no=1, note=None):
                 s1, c1 = ("—", "—") if not os.path.exists(logp) else ("无", "0")
             s2 = "、".join(f"turn {t + 1 if t is not None else '?'}" for t in l2) or "无"
             blines.append(f"| {short(a['label'])} | {c1} | {s1} | {len(l2)} | {s2} |")
-        blines += ["", "层 1 触发阈值 prompt_tokens ≥ 24K、层 2 ≥ 56K（memory.py）。层 1 计数依赖 agent.log 的 live 输出（run5 该目录丢失，四题记为 —）；层 2 来自 latency.jsonl，始终可靠。", ""]
+        blines += ["", COMPACT_NOTE_V3 if run_no >= 3 else COMPACT_NOTE_V1, ""]
         for cname in ("tool_calls.png", "tool_time.png", "time_composition.png"):
             if cname in charts:
                 blines += ["", f"![{cname[:-4]}](charts/{cname})"]
@@ -763,8 +831,12 @@ def write_full_run_report(attempts, run_no=1, note=None):
         ]
     else:
         fails = [a for a in rows if a["verdict"] == "FAIL"]
-        fail_body = ([f"- {short(a['label'])}：{a.get('tests', '?')} 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。" for a in fails]
-                     or ["本轮无失败题目。"])
+        custom = RUN_FAILURE_TEXTS.get(run_no)
+        if custom:
+            fail_body = list(custom)
+        else:
+            fail_body = ([f"- {short(a['label'])}：{a.get('tests', '?')} 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。" for a in fails]
+                         or ["本轮无失败题目。"])
     sections.append(("失败案例分析", fail_body))
 
     if run_no == 1:
