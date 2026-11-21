@@ -131,20 +131,27 @@ def scan_task_dir(tdir):
     pout = sum(c["completion_tokens"] for c in calls)
     cached = sum(c.get("cached_tokens") or 0 for c in calls)
     lat = sum(c.get("latency_s", 0) for c in calls)
-    cost = 0.0
+    cost = cost_unc = cost_cac = cost_out = cost_nocache_in = 0.0
     for c in calls:
         p = PRICE.get(c.get("model_id"))
         if not p or p[0] is None:
             continue
         ct = c.get("cached_tokens") or 0
-        cost += ((c["prompt_tokens"] - ct) * p[0]
-                 + ct * p[1]
-                 + c["completion_tokens"] * p[2]) / 1e6
+        u = (c["prompt_tokens"] - ct) * p[0] / 1e6
+        ca = ct * p[1] / 1e6
+        o = c["completion_tokens"] * p[2] / 1e6
+        cost_unc += u
+        cost_cac += ca
+        cost_out += o
+        cost_nocache_in += c["prompt_tokens"] * p[0] / 1e6
+        cost += u + ca + o
     wall = (last - first).total_seconds() if first and last else None
     return {
         "calls": len(calls), "comp_unknown": comp_unknown, "models": sorted(models),
         "in": pin, "out": pout, "cached": cached, "model_s": lat, "wall_s": wall,
-        "cost_cny": cost, "reason": reason, "iters": iters,
+        "cost_cny": cost, "cost_unc_cny": cost_unc, "cost_cac_cny": cost_cac,
+        "cost_out_cny": cost_out, "cost_nocache_in_cny": cost_nocache_in,
+        "reason": reason, "iters": iters,
         "start": first.isoformat() if first else None,
     }
 
@@ -713,9 +720,10 @@ def write_full_run_report(attempts, run_no=1, note=None):
     win_walls = sorted(a["wall_s"] or 0 for a in wins)
     med = win_walls[len(win_walls) // 2]
     avg_solve_min = sum(win_walls) / len(wins) / 60
-    c_unc = (pin - cach) * 0.8 / 1e6
-    c_cac = cach * 0.1 / 1e6
-    c_out = pout * 2.7 / 1e6
+    c_unc = sum(a["cost_unc_cny"] for a in rows)
+    c_cac = sum(a["cost_cac_cny"] for a in rows)
+    c_out = sum(a["cost_out_cny"] for a in rows)
+    c_nocache_in = sum(a["cost_nocache_in_cny"] for a in rows)
     excluded = sum(a["cost_cny"] for a in attempts) - cost
     ver = agent_version_info()
     cfg = config_snapshot()
@@ -740,13 +748,57 @@ def write_full_run_report(attempts, run_no=1, note=None):
             if str(rno) in snaps:
                 refs.append((rno, snaps[str(rno)]))
 
+    # Derive actual model(s), tier(s), extra_body, and pricing text from trace data
+    used_models = sorted({m for a in rows for m in a.get("models", []) if m and m != "?"})
+    tier_map = {
+        cfg.get("MODEL_EXPERT"): "expert",
+        cfg.get("MODEL_STANDARD"): "standard",
+        cfg.get("MODEL_STARTER"): "starter",
+    }
+    extra_map = cfg.get("MODEL_EXTRA_BODY") or {}
+
+    def _fmt_extra(m):
+        eb = extra_map.get(m)
+        if isinstance(eb, dict) and eb:
+            return ", ".join(f"{k}={v}" for k, v in eb.items())
+        return ""
+
+    if len(used_models) == 1:
+        m0 = used_models[0]
+        tier0 = tier_map.get(m0)
+        ex0 = _fmt_extra(m0)
+        detail = "，".join(x for x in (f"{tier0} 档" if tier0 else "", ex0) if x)
+        unused = [t for t in ("expert", "standard", "starter") if t != tier0]
+        unused_str = f"；{'/'.join(unused)} 配置未启用" if tier0 else ""
+        model_line = f"- 模型：全程 `{m0}`" + (f"（{detail}）" if detail else "") + unused_str
+        p0 = PRICE.get(m0)
+        if p0 and p0[0] is not None:
+            if cach == 0 and m0 == "qwen3.6-flash":
+                price_desc = f"¥{p0[0]:g}/M 输入、¥{p0[2]:g}/M 输出，实测未回填 cached_tokens 按 0 缓存估算"
+            else:
+                price_desc = f"¥{p0[0]:g}/M 输入、¥{p0[1]:g}/M 缓存输入、¥{p0[2]:g}/M 输出"
+        else:
+            price_desc = "按各模型目录价逐调用累加"
+        billing_line = f"- 计费：Qwen 目录价等价（{price_desc}），非实际现金支出（Token Plan 订阅额度）；美元按 {USD:g} 折算"
+        extra_label = ex0 or m0
+    else:
+        parts = []
+        for m in used_models:
+            t = tier_map.get(m)
+            ex = _fmt_extra(m)
+            d = "，".join(x for x in (f"{t} 档" if t else "", ex) if x)
+            parts.append(f"`{m}`" + (f"（{d}）" if d else ""))
+        model_line = "- 模型：" + " + ".join(parts) if parts else "- 模型：未知"
+        billing_line = f"- 计费：Qwen 目录价等价（按实际调用模型逐次累加），非实际现金支出（Token Plan 订阅额度）；美元按 {USD:g} 折算"
+        extra_label = "当前配置"
+
     sections = []
     sections.append(("概述", [
         f"- **成绩：{npass}/{len(rows)}（{100*npass/len(rows):.1f}%）**"
         + ("；未通过的题均为仅差一个测试的近似失败（见 §FAIL）" if run_no == 1 and npass < len(rows) else ""),
-        "- 模型：全程 `qwen3.8-flash`（standard 档，reasoning_effort=medium）；expert/starter 配置未启用",
+        model_line,
         "- 环境：Windows 16GB 笔记本 + WSL2 Docker VM 12GB，2 并发 × 4g 沙箱，1 并发评分",
-        "- 计费：Qwen 目录价等价（¥0.8/M 输入、¥0.1/M 缓存输入、¥2.7/M 输出），非实际现金支出（Token Plan 订阅额度）；美元按 7.1 折算",
+        billing_line,
     ]))
 
     design = [
@@ -910,6 +962,10 @@ def write_full_run_report(attempts, run_no=1, note=None):
         for a, b in beh:
             logp = (os.path.join(STARTER, "run_logs", "agent.log") if a["run"] == "CURRENT"
                     else os.path.join(ARCH, a["run"], "run_logs", "agent.log"))
+            if not os.path.exists(logp) and a.get("hdir"):
+                fallback = os.path.join(a["hdir"], "agent.log")
+                if os.path.exists(fallback):
+                    logp = fallback
             l1, l2 = scan_compactions(a.get("tdir", ""), logp, int(a["key"]))
             if l1:
                 if len(l1) <= 6:
@@ -947,16 +1003,18 @@ def write_full_run_report(attempts, run_no=1, note=None):
             if notes:
                 flags.append(f"- {short(a['label'])}：" + "；".join(notes))
         blines += flags or ["- 无显著异常"]
-        blines += ["", "**逐题行为与思维链总结**：", ""]
+        bnote_items = []
         for a, b in beh:
-            note = BEHAVIOR_NOTES.get(run_no, {}).get(short(a["label"]))
-            if note:
-                blines += [f"### {short(a['label'])}", "", note, ""]
+            bnote = BEHAVIOR_NOTES.get(run_no, {}).get(short(a["label"]))
+            if bnote:
+                bnote_items += [f"### {short(a['label'])}", "", bnote, ""]
+        if bnote_items:
+            blines += ["", "**逐题行为与思维链总结**：", ""] + bnote_items
         sections.append(("Agent 行为分析", blines))
 
     token_lines = [
-        f"1. **输入:输出 = {pin/max(pout,1):.0f}:1**：agent 负载的成本主体是反复提交上下文，而非生成。{100*cach/max(pin,1):.0f}% 的缓存命中节省约 ¥{(pin*0.8/1e6)-(c_unc+c_cac):.1f}；若无前缀缓存，总成本约为 ¥{pin*0.8/1e6+c_out:.1f}。前缀缓存是该 harness 中价值最高的机制，compaction 策略（减少触发、触发后保持前缀稳定）直接决定成本。",
-        f"2. **输出仅占 token 的 {100*pout/(pin+pout):.1f}%，却占成本 {100*c_out/cost:.0f}%**；未缓存输入占 token {100*(pin-cach)/(pin+pout):.0f}%、占成本 {100*c_unc/cost:.0f}%。压缩成本的两个杠杆：减少上下文失效、控制输出长度。reasoning_effort=medium 下平均输出 {pout/max(calls,1):.0f} tok/call、平均延迟 {model/max(calls,1):.1f} s。",
+        f"1. **输入:输出 = {pin/max(pout,1):.0f}:1**：agent 负载的成本主体是反复提交上下文，而非生成。{100*cach/max(pin,1):.0f}% 的缓存命中节省约 ¥{c_nocache_in-(c_unc+c_cac):.1f}；若无前缀缓存，总成本约为 ¥{c_nocache_in+c_out:.1f}。前缀缓存是该 harness 中价值最高的机制，compaction 策略（减少触发、触发后保持前缀稳定）直接决定成本。",
+        f"2. **输出仅占 token 的 {100*pout/(pin+pout):.1f}%，却占成本 {100*c_out/cost:.0f}%**；未缓存输入占 token {100*(pin-cach)/(pin+pout):.0f}%、占成本 {100*c_unc/cost:.0f}%。压缩成本的两个杠杆：减少上下文失效、控制输出长度。{extra_label} 下平均输出 {pout/max(calls,1):.0f} tok/call、平均延迟 {model/max(calls,1):.1f} s。",
     ]
     if run_no == 1:
         token_lines += [
@@ -990,8 +1048,16 @@ def write_full_run_report(attempts, run_no=1, note=None):
         if custom:
             fail_body = list(custom)
         else:
-            fail_body = ([f"- {short(a['label'])}：{a.get('tests', '?')} 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。" for a in fails]
-                         or ["本轮无失败题目。"])
+            r1_tasks = snaps.get("1", {}).get("tasks", {})
+            fail_body = []
+            for a in fails:
+                suffix = (
+                    "Full Run 1 亦未通过，可对照其失败案例分析。"
+                    if r1_tasks.get(a["label"], {}).get("verdict") == "FAIL"
+                    else "详见 §5 总结与 §8 行为分析。"
+                )
+                fail_body.append(f"- {short(a['label'])}：{a.get('tests', '?')} 个测试未通过（官方 verifier）。{suffix}")
+            fail_body = fail_body or ["本轮无失败题目。"]
     sections.append(("失败案例分析", fail_body))
 
     if run_no == 1:
@@ -1037,8 +1103,9 @@ def write_full_run_report(attempts, run_no=1, note=None):
 
     nums = {title: i for i, (title, _) in enumerate(sections, 1)}
     fail_no = nums["失败案例分析"]
+    gen_date = datetime.now().strftime("%Y-%m-%d")
     lines = [f"# CS2680 Assignment 3 运行报告 · Full Run {run_no}", "",
-             "生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §METHOD）".replace("§METHOD", f"§{nums['统计方法说明']}"), ""]
+             f"生成日期：{gen_date} · 统计规则：每题计一次有效尝试（见 §METHOD）".replace("§METHOD", f"§{nums['统计方法说明']}"), ""]
     for i, (title, body) in enumerate(sections, 1):
         lines.append(f"## {i}. {title}")
         lines.append("")
@@ -1128,7 +1195,7 @@ def main():
             label = table[k].get("instance_id", k) if table else (results[pos][0] if pos < len(results) else k)
             verdict = results[pos][1] if pos < len(results) else tsv.get(str(pos), "?")
             m.update({"run": stamp, "key": str(pos), "label": label, "verdict": verdict,
-                      "tdir": tdir, "hid_epoch": epoch,
+                      "tdir": tdir, "hid_epoch": epoch, "hdir": hdir,
                       "tests": results[pos][2] if pos < len(results) else ""})
             attempts.append(m)
     # Full Run 1 = the development campaign (equivalent single run); every

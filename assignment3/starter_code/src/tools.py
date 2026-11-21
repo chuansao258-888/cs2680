@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .config import READ_MAX_CHARS
+from .prompts import format_plan
 
 
 def _reads_files_via_bash(command: str) -> bool:
@@ -131,9 +132,12 @@ class EditFileTool(Tool):
         ),
         "parameters": {"type": "object", "properties": {
             "files": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
-                "path": {"type": "string", "description": "Path relative to the working directory."},
-                "old_string": {"type": "string"},
-                "new_string": {"type": "string"},
+                "path": {"type": "string", "minLength": 1,
+                         "description": "Required non-empty path relative to the working directory (must be set on every hunk)."},
+                "old_string": {"type": "string", "minLength": 1,
+                               "description": "Required non-empty exact text to replace."},
+                "new_string": {"type": "string",
+                               "description": "Replacement text (may be empty string to delete old_string)."},
                 "replace_all": {"type": "boolean",
                                 "description": "Replace every occurrence instead of requiring a unique match."},
             }, "required": ["path", "old_string", "new_string"]}},
@@ -141,7 +145,10 @@ class EditFileTool(Tool):
     }}
 
     def execute(self, sb, args, task_memory):
-        return sb.edit_batch(args.get("files") or [])
+        files = args.get("files")
+        if not isinstance(files, list) or not files:
+            raise ValueError("files must be a non-empty list of hunks")
+        return sb.edit_batch(files)
 
 
 class CreateFileTool(Tool):
@@ -197,13 +204,22 @@ class UpdatePlanTool(Tool):
         steps = args["steps"]
         if not isinstance(steps, list) or not steps:
             raise ValueError("steps must be a non-empty list")
+        normalized = []
         for step in steps:
-            if not isinstance(step, dict) or not isinstance(step.get("step"), str):
-                raise ValueError("every plan step must have text")
-            if step.get("status") not in {"pending", "in_progress", "completed"}:
+            if not isinstance(step, dict) or not isinstance(step.get("step"), str) or not step["step"].strip():
+                raise ValueError("every plan step must have non-empty text")
+            status = step.get("status")
+            if status not in {"pending", "in_progress", "completed"}:
                 raise ValueError("every plan step must have a valid status")
-        task_memory.current_plan = steps
-        return "Plan updated:\n" + json.dumps(steps, ensure_ascii=False, indent=2)
+            normalized.append({"step": step["step"].strip(), "status": status})
+        if normalized == task_memory.current_plan:
+            return "Plan unchanged (no update needed)."
+        task_memory.current_plan = normalized
+        out = format_plan(normalized)
+        in_prog = sum(1 for s in normalized if s["status"] == "in_progress")
+        if in_prog > 1:
+            out += "\nNote: keep at most one step in_progress at a time."
+        return out
 
 
 TOOLS = [

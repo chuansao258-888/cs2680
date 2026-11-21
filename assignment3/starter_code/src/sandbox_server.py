@@ -248,11 +248,19 @@ def do_edit_batch(files, cwd: str) -> dict:
             results.append({"index": i, "status": "error",
                             "error": "hunk must be an object with path/old_string/new_string"})
             continue
-        path = hunk.get("path", "")
+        path = hunk.get("path")
         old, new = hunk.get("old_string"), hunk.get("new_string")
-        if not isinstance(old, str) or not isinstance(new, str):
+        if not isinstance(path, str) or not path.strip():
+            results.append({"index": i, "path": path if isinstance(path, str) else "", "status": "error",
+                            "error": "path is required and must be a non-empty string"})
+            continue
+        if not isinstance(old, str) or not old:
             results.append({"index": i, "path": path, "status": "error",
-                            "error": "old_string and new_string must be strings"})
+                            "error": "old_string is required and must be a non-empty string"})
+            continue
+        if not isinstance(new, str):
+            results.append({"index": i, "path": path, "status": "error",
+                            "error": "new_string must be a string"})
             continue
         try:
             real = resolve(path, cwd)

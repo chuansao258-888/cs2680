@@ -17,22 +17,30 @@ AGENT_SYSTEM_PROMPT = (
     "command output you can observe now - is the only other source of "
     "evidence. You cannot reliably remember any of it: anything phrased as "
     "recollection of history, upstream code, or unseen tests is an "
-    "unverified guess. When the specification is ambiguous, resolve it by "
-    "the literal reading first, by observable evidence in the environment "
-    "second, and by the simplest interpretation consistent with both "
-    "third; then state the choice you made instead of seeking an oracle. "
+    "unverified guess. When the specification is ambiguous—especially for "
+    "public output contracts such as error messages, repr/formatting, or "
+    "public signatures—resolve it by: (1) the literal reading, (2) observable "
+    "evidence in the local repo (existing conventions in the same module or "
+    "tests, or a quick git log check on the target file's style), and "
+    "(3) minimal change to existing wording or output skeletons (edit only "
+    "the part the spec changes rather than rewriting the whole message); "
+    "then state the choice you made instead of seeking an oracle. "
 
-    "Bias to action. Once your investigation suggests a plausible change, "
-    "make it and run the relevant tests instead of gathering more context. "
-    "Prefer narrowly targeted tests on the code you changed, then broaden "
-    "to the surrounding suite. Fix the root cause the spec describes; keep "
-    "changes minimal and in the existing style. "
+    "Bias to action. Start by checking the repository's top-level layout and "
+    "test root (especially in monorepos or workspaces) before assuming where "
+    "code or tests belong. Once your investigation suggests a plausible "
+    "change, make it and run the relevant tests instead of gathering more "
+    "context. Prefer narrowly targeted tests on the code you changed, then "
+    "broaden to the surrounding suite. Fix the root cause the spec describes; "
+    "keep changes minimal and in the existing style. "
 
     "Tools. If no current plan exists, use update_plan to create a short, "
     "actionable plan covering investigation, implementation, and "
     "verification; update it as steps complete or evidence changes; never "
     "recreate it after a conversation summary; mark a step completed only "
-    "when tool results support it. The search tool matches literal text, "
+    "when tool results support it. Batch independent read-only calls "
+    "(multiple read_file or search calls) in a single turn to avoid "
+    "unnecessary round-trips. The search tool matches literal text, "
     "not regular expressions. Read file contents only with read_file and "
     "line ranges; a very large read comes back as a leading page with the "
     "next start_line reported - page forward to the part you need instead "
@@ -58,13 +66,70 @@ AGENT_SYSTEM_PROMPT = (
     "when verification fails."
 )
 
-PROGRESS_REMINDER = (
-    "Progress check: turn {iteration} of {max_iterations}, {remaining} "
-    "turns left. Pace yourself toward a complete fix. If you have not "
-    "modified any file yet, make your first concrete edit now based on "
-    "what you already know; if edits are done, run the relevant tests and "
-    "address the results. Update the plan to reflect reality."
+PROGRESS_REMINDER_EARLY = (
+    "Progress check (exploration phase): turn {iteration} of {max_iterations}, "
+    "{remaining} turns left. You have not modified any file yet. Finish "
+    "locating the target code and test root, then make your first concrete "
+    "edit now based on what you already know."
 )
+
+PROGRESS_REMINDER_MID = (
+    "Progress check (verification phase): turn {iteration} of {max_iterations}, "
+    "{remaining} turns left. Edits are in progress. Run narrowly targeted "
+    "tests for your changes, fix any failures directly, and update the plan "
+    "to reflect reality."
+)
+
+PROGRESS_REMINDER_FINAL = (
+    "Progress check (wrap-up phase): turn {iteration} of {max_iterations}, "
+    "only {remaining} turns left. Stop broad exploration or refactoring now. "
+    "Finish the remaining targeted fix, run the relevant verification tests, "
+    "and review `git diff` so the working tree is clean and complete."
+)
+
+FINAL_PHASE_TURNS = 15
+
+_PLAN_MARK = {"completed": "[x]", "in_progress": "[~]", "pending": "[ ]"}
+
+
+def format_plan(steps: list[dict[str, str]], pending_only: bool = False) -> str:
+    """Render structured plan steps as a compact checklist."""
+    if not steps:
+        return ""
+    done = sum(1 for s in steps if s.get("status") == "completed")
+    shown = [s for s in steps if s.get("status") != "completed"] if pending_only else steps
+    header = f"Plan ({done}/{len(steps)} completed):"
+    if not shown:
+        return header + " all steps marked completed."
+    lines = [header]
+    for s in shown:
+        mark = _PLAN_MARK.get(s.get("status", ""), "[ ]")
+        lines.append(f"- {mark} {s.get('step', '')}")
+    return "\n".join(lines)
+
+
+def format_progress_reminder(
+    iteration: int,
+    max_iterations: int,
+    has_edited: bool,
+    current_plan: list[dict[str, str]] | None = None,
+) -> str:
+    """Return a phase-aware progress reminder based on remaining budget, edit state, and plan."""
+    remaining = max_iterations - iteration
+    if remaining <= FINAL_PHASE_TURNS:
+        template = PROGRESS_REMINDER_FINAL
+    elif not has_edited:
+        template = PROGRESS_REMINDER_EARLY
+    else:
+        template = PROGRESS_REMINDER_MID
+    text = template.format(
+        iteration=iteration,
+        max_iterations=max_iterations,
+        remaining=remaining,
+    )
+    if current_plan:
+        text += "\n" + format_plan(current_plan, pending_only=True)
+    return text
 
 REPEATED_READ_REMINDER = (
     "You have now read the same file {path} several times during this task. "

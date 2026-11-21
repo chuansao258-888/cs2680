@@ -1,6 +1,6 @@
 # CS2680 Assignment 3 运行报告 · Full Run 5
 
-生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §11）
+生成日期：2026-11-21 · 统计规则：每题计一次有效尝试（见 §11）
 
 ## 1. 概述
 
@@ -380,14 +380,13 @@ FAIL（run4 同因复发）：31 轮，探索→turn 9 编辑→jest/eslint/pret
 
 ## 10. 失败案例分析
 
-- ansible/83909bf：1/150 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- protonmail/944adbf：10/10 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
+- ansible/83909bf：1/150 个测试未通过（官方 verifier）。Full Run 1 亦未通过，可对照其失败案例分析。
+- protonmail/944adbf：10/10 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
 
 ## 11. 统计方法说明
 
 - **每题计一次有效尝试**：通过题取首次通过的尝试；未通过题取最后一次有效评分（官方 verifier 链路）。因崩溃、OOM、编排器故障、verifier 缺陷或模型行为异常而无效的尝试不计入时间与成本。
 - 尝试按 hostlog 运行 ID 分组，本报告只含本轮尝试。
-- **本轮性质**：FAIL（run4 同因复发）：31 轮，探索→turn 9 编辑→jest/eslint/prettier 节奏正常，卫生动作好（临时测试用完即删、git worktree 建 pristine 副本对照）。但决定性失误与 run4 一致——实现放 packages/metrics/lib、测试放 packages/metrics/tests，thinking 明确写 Hidden tests are most likely in packages/metrics/tests，全程未探查仓库根 tests/。工具层无异常，纯位置语义猜测失误。
 - 耗时 = trace 首末事件时间差；成本按目录价逐调用累加；compaction 调用无 usage 记录，未计入。
 - 任务归属按 hostlogs 任务表快照 + trace 位置序号对齐；无 results.md 的轮次以 evaluations.tsv 补充判定。
 - 排行榜数据取自截止后的静态 API（作业已关闭，无新增提交）。

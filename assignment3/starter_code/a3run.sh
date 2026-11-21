@@ -10,9 +10,17 @@ limit="${1:-1}"
 # Archives live OUTSIDE the container-mounted dir: grading outputs there
 # contain hidden test names the agent must never be able to read.
 stamp=$(date +%Y%m%d-%H%M%S)
-mkdir -p "../previous_runs/$stamp"
+archive_dir="../previous_runs/$stamp"
+mkdir -p "$archive_dir"
 for target in madsOpt_logs run_logs model_patch_*.diff pro_eval run_all_results.md predictions.json; do
-    [ -e "$target" ] && mv -- "$target" "../previous_runs/$stamp/" || true
+    [ -e "$target" ] || continue
+    if ! mv -- "$target" "$archive_dir/" 2>/dev/null; then
+        # On WSL2/NTFS, mv fails with EBUSY/EACCES if another process (e.g. a
+        # watcher or editor) holds a handle inside run_logs/. Copy instead so
+        # agent.log and other logs are never silently lost before run_all.py wipes them.
+        cp -a -- "$target" "$archive_dir/"
+        rm -rf -- "$target" 2>/dev/null || true
+    fi
 done
 
 # Hand the host-side knobs (provider upstream, concurrency, time limit) to

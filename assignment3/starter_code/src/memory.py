@@ -14,7 +14,7 @@ from .config import (
     TOOL_COMPACT_THRESHOLD,
     WINDOW_TOKEN_BUDGET,
 )
-from .prompts import COMPACTION_PROMPT, SUMMARY_CONTEXT_PROMPT
+from .prompts import COMPACTION_PROMPT, SUMMARY_CONTEXT_PROMPT, format_plan
 
 # Archive only when the raw output is at least twice the preview size, so an
 # archived message is always smaller than the short outputs kept verbatim.
@@ -241,7 +241,7 @@ class TaskMemory:
 
         if not self.messages or self.messages[0].get("role") != "system":
             return False, usage
-        current_plan = json.dumps(self.current_plan, ensure_ascii=False)
+        current_plan = format_plan(self.current_plan) or "(no plan)"
         self.messages = [
             self.messages[0],
             {

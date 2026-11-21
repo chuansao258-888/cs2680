@@ -526,7 +526,12 @@ def cleanup():
     sh("docker", "exec", AGENT, "chown", "-R", f"{os.getuid()}:{os.getgid()}", "/madsOpt/.tasks", "/madsOpt/madsOpt_logs", check=False)
     for name, out in ((AGENT, "agent.log"), (PROXY, "proxy.log")):
         r = sh("docker", "logs", name, check=False)
-        open(f"run_logs/{out}", "w").write((r.stdout or "") + (r.stderr or ""))
+        text = (r.stdout or "") + (r.stderr or "")
+        open(f"run_logs/{out}", "w").write(text)
+        try:
+            open(f"{HOSTLOG}/{out}", "w").write(text)
+        except OSError:
+            pass
     ids = sh("docker", "ps", "-aq", "--filter", f"name=^a3sbx_{RUN}_", check=False).stdout.split()
     for c in ids + [AGENT, PROXY]:
         sh("docker", "rm", "-f", c, check=False)

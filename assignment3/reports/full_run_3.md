@@ -1,6 +1,6 @@
 # CS2680 Assignment 3 运行报告 · Full Run 3
 
-生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §11）
+生成日期：2026-11-21 · 统计规则：每题计一次有效尝试（见 §11）
 
 ## 1. 概述
 
@@ -403,7 +403,6 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 - **每题计一次有效尝试**：通过题取首次通过的尝试；未通过题取最后一次有效评分（官方 verifier 链路）。因崩溃、OOM、编排器故障、verifier 缺陷或模型行为异常而无效的尝试不计入时间与成本。
 - 尝试按 hostlog 运行 ID 分组，本报告只含本轮尝试。
-- **本轮性质**：45 轮、一批归档、无摘要压缩；_vmap 功能重构全对，thinking 近十段反复推演 repr 格式，明确枚举过 `self._vmap.values()`（odict_values）与 OrderedDict 两种渲染，但因"无法回忆 upstream 提交"以可见测试为唯一证据选定 `values=list(...)`——与前三次完全相同的决策路径与失败点，系统性而非随机；还顺手把可见 test_iter 改成 _vmap.values() 自洽。
 - 耗时 = trace 首末事件时间差；成本按目录价逐调用累加；compaction 调用无 usage 记录，未计入。
 - 任务归属按 hostlogs 任务表快照 + trace 位置序号对齐；无 results.md 的轮次以 evaluations.tsv 补充判定。
 - 排行榜数据取自截止后的静态 API（作业已关闭，无新增提交）。

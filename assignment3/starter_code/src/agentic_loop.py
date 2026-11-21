@@ -30,9 +30,12 @@ from .config import (
     TOOL_RESULT_PREVIEW_CHARS,
     api_settings,
 )
-from .prompts import AGENT_SYSTEM_PROMPT, PROGRESS_REMINDER, REPEATED_READ_REMINDER
+from .prompts import AGENT_SYSTEM_PROMPT, REPEATED_READ_REMINDER, format_progress_reminder
 from .sandbox import Sandbox, SandboxError, SandboxPathError
 from .tools import TOOL_LIST, execute_tool
+
+READ_ONLY_TOOLS = frozenset({"read_file", "search", "read_archived_output"})
+MAX_PARALLEL_READS = 8
 
 
 def _debug(message: str) -> None:
@@ -280,6 +283,78 @@ def _tool_result_header(
     return "[tool_result " + json.dumps(metadata, ensure_ascii=False, sort_keys=True) + "]"
 
 
+def _exec_one_tool(sb, name: str, arguments: dict, task_memory) -> tuple[object, bool, float]:
+    """Execute one parsed tool call and return (result, is_error, duration_s)."""
+    started = time.perf_counter()
+    try:
+        result = execute_tool(sb, name, arguments, task_memory)
+        return result, False, time.perf_counter() - started
+    except (KeyError, TypeError, ValueError, SandboxError, SandboxPathError) as error:
+        return f"Error: {error}", True, time.perf_counter() - started
+
+
+def _run_tool_calls(tool_calls, sb, task_memory, logger, iteration: int,
+                    read_counts: dict[str, int], reminded_paths: set[str]):
+    """Run one turn's tool calls, executing consecutive read-only calls concurrently.
+
+    Returns (outcomes, reminder_path) where each outcome is aligned with
+    ``tool_calls`` order: (call, name, arguments, result, is_error, duration_s).
+    """
+    parsed = []
+    reminder_path = None
+    for call in tool_calls:
+        name = call.function.name
+        arguments_json = call.function.arguments or "{}"
+        logger.tool_call(iteration, name, arguments_json)
+        try:
+            arguments = json.loads(arguments_json)
+            if not isinstance(arguments, dict):
+                raise ValueError("tool arguments must be a JSON object")
+        except (json.JSONDecodeError, ValueError) as error:
+            parsed.append((call, name, {}, f"Error: {error}"))
+            continue
+        if name == "read_file":
+            read_path = str(arguments.get("path", ""))
+            read_counts[read_path] = read_counts.get(read_path, 0) + 1
+            if (read_counts[read_path] >= REPEATED_READ_THRESHOLD
+                    and read_path not in reminded_paths):
+                reminder_path = read_path
+        parsed.append((call, name, arguments, None))
+
+    outcomes = [None] * len(parsed)
+    i = 0
+    while i < len(parsed):
+        call, name, arguments, parse_err = parsed[i]
+        if parse_err is not None:
+            outcomes[i] = (call, name, arguments, parse_err, True, 0.0)
+            i += 1
+            continue
+        if name in READ_ONLY_TOOLS:
+            j = i + 1
+            while j < len(parsed) and parsed[j][3] is None and parsed[j][1] in READ_ONLY_TOOLS:
+                j += 1
+            batch = parsed[i:j]
+            if len(batch) > 1:
+                with ThreadPoolExecutor(max_workers=min(len(batch), MAX_PARALLEL_READS)) as pool:
+                    futs = [
+                        pool.submit(_exec_one_tool, sb, b_name, b_args, task_memory)
+                        for _, b_name, b_args, _ in batch
+                    ]
+                    for offset, ((b_call, b_name, b_args, _), fut) in enumerate(zip(batch, futs)):
+                        result, is_error, dur = fut.result()
+                        outcomes[i + offset] = (b_call, b_name, b_args, result, is_error, dur)
+            else:
+                result, is_error, dur = _exec_one_tool(sb, name, arguments, task_memory)
+                outcomes[i] = (call, name, arguments, result, is_error, dur)
+            i = j
+        else:
+            result, is_error, dur = _exec_one_tool(sb, name, arguments, task_memory)
+            outcomes[i] = (call, name, arguments, result, is_error, dur)
+            i += 1
+
+    return outcomes, reminder_path
+
+
 def _state_snapshot(sb, max_chars: int = 6000) -> str:
     try:
         status = sb.exec("git status --short && git diff", timeout_s=60)
@@ -366,6 +441,7 @@ class Agent:
         t_task0 = time.perf_counter()
         read_counts: dict[str, int] = {}
         reminded_paths: set[str] = set()
+        has_edited = False
         try:
             for iteration in range(MAX_ITERATIONS):
                 last_iteration = iteration
@@ -373,10 +449,8 @@ class Agent:
                 if (iteration + 1) % pace_every == 0 and iteration + 1 < MAX_ITERATIONS:
                     task_memory.messages.append({
                         "role": "user",
-                        "content": PROGRESS_REMINDER.format(
-                            iteration=iteration + 1,
-                            max_iterations=MAX_ITERATIONS,
-                            remaining=MAX_ITERATIONS - iteration - 1,
+                        "content": format_progress_reminder(
+                            iteration + 1, MAX_ITERATIONS, has_edited, task_memory.current_plan
                         ),
                     })
 
@@ -406,30 +480,13 @@ class Agent:
                 if not tool_calls:
                     break
 
-                reminder_path = None
-                for call in tool_calls:
-                    name = call.function.name
-                    arguments_json = call.function.arguments or "{}"
-                    logger.tool_call(iteration, name, arguments_json)
-                    is_error = False
-                    tool_started = time.perf_counter()
-                    arguments = {}
-                    try:
-                        arguments = json.loads(arguments_json)
-                        if not isinstance(arguments, dict):
-                            raise ValueError("tool arguments must be a JSON object")
-                        if name == "read_file":
-                            read_path = str(arguments.get("path", ""))
-                            read_counts[read_path] = read_counts.get(read_path, 0) + 1
-                            if (read_counts[read_path] >= REPEATED_READ_THRESHOLD
-                                    and read_path not in reminded_paths):
-                                reminder_path = read_path
-                        result = execute_tool(sb, name, arguments, task_memory)
-                    except (json.JSONDecodeError, KeyError, TypeError, ValueError,
-                            SandboxError, SandboxPathError) as error:
-                        is_error = True
-                        result = f"Error: {error}"
-
+                outcomes, reminder_path = _run_tool_calls(
+                    tool_calls, sb, task_memory, logger, iteration, read_counts, reminded_paths
+                )
+                for call, name, arguments, result, is_error, duration_s in outcomes:
+                    if not is_error and name in ("edit_file", "create_file"):
+                        if name == "create_file" or (isinstance(result, dict) and result.get("applied", 0) > 0):
+                            has_edited = True
                     body = _tool_content(result)
                     # Large bash outputs are archived at birth: the message is
                     # born in its final preview form and is never rewritten,
@@ -441,7 +498,7 @@ class Agent:
                         arguments,
                         result,
                         is_error,
-                        time.perf_counter() - tool_started,
+                        duration_s,
                         body,
                         output_id=born[0] if born else None,
                     )

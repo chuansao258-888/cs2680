@@ -1,13 +1,13 @@
 # CS2680 Assignment 3 运行报告 · Full Run 6
 
-生成日期：2026-11-20 · 统计规则：每题计一次有效尝试（见 §11）
+生成日期：2026-11-21 · 统计规则：每题计一次有效尝试（见 §11）
 
 ## 1. 概述
 
 - **成绩：4/15（26.7%）**
-- 模型：全程 `qwen3.8-flash`（standard 档，reasoning_effort=medium）；expert/starter 配置未启用
+- 模型：全程 `qwen3.6-flash`（starter 档，thinking_budget=16384）；expert/standard 配置未启用
 - 环境：Windows 16GB 笔记本 + WSL2 Docker VM 12GB，2 并发 × 4g 沙箱，1 并发评分
-- 计费：Qwen 目录价等价（¥0.8/M 输入、¥0.1/M 缓存输入、¥2.7/M 输出），非实际现金支出（Token Plan 订阅额度）；美元按 7.1 折算
+- 计费：Qwen 目录价等价（¥1.2/M 输入、¥7.2/M 输出，实测未回填 cached_tokens 按 0 缓存估算），非实际现金支出（Token Plan 订阅额度）；美元按 7.1 折算
 
 ## 2. Agent 配置与设计
 
@@ -217,7 +217,7 @@ assignment3/starter_code/src/agentic_loop.py   |  43 +++++--
 | 平均解题时间 | **8.1 min**（中位 11.0；最快 1.4，最慢 15.2） |
 | 任务墙钟总和 | 2.25 h（2 并发，实际历时更短）；模型推理 1.29 h，占 57% |
 | **总花费（目录价等价）** | **¥37.31 ≈ $5.26** |
-| 成本构成 | 未缓存输入 ¥22.19（59%）+ 缓存输入 ¥0.00（0%）+ 输出 ¥1.51（4%） |
+| 成本构成 | 未缓存输入 ¥33.29（89%）+ 缓存输入 ¥0.00（0%）+ 输出 ¥4.02（11%） |
 | 平均每题花费 | ¥2.49 |
 | 平均每个胜题花费 | ¥9.33 ≈ **$1.314/solved** |
 | 胜题单次成本 | 最低 ¥0.30，最高 ¥3.82 |
@@ -304,29 +304,26 @@ compaction 调用未记录 usage，成本低估可忽略。
 - gravitational/89f0432：24 次完全相同的重复调用（如 bash `cd /app && git diff --stat` ×7；bash `cd /app && go build ./lib/utils/... 2>&1` ×5）；高频重读 utils.go ×11（不同行段）
 - internetarchive/53d376b：15 次完全相同的重复调用（如 bash `cd /app && git diff --stat` ×9；read `/app/openlibrary/mocks/mock_infobase.py [-]` ×4）；首编辑迟至第 25 轮；高频重读 mock_infobase.py ×14（不同行段）
 
-**逐题行为与思维链总结**：
-
-
 ## 9. Token 用量分析
 
-1. **输入:输出 = 50:1**：agent 负载的成本主体是反复提交上下文，而非生成。0% 的缓存命中节省约 ¥0.0；若无前缀缓存，总成本约为 ¥23.7。前缀缓存是该 harness 中价值最高的机制，compaction 策略（减少触发、触发后保持前缀稳定）直接决定成本。
-2. **输出仅占 token 的 2.0%，却占成本 4%**；未缓存输入占 token 98%、占成本 59%。压缩成本的两个杠杆：减少上下文失效、控制输出长度。reasoning_effort=medium 下平均输出 535 tok/call、平均延迟 4.5 s。
+1. **输入:输出 = 50:1**：agent 负载的成本主体是反复提交上下文，而非生成。0% 的缓存命中节省约 ¥0.0；若无前缀缓存，总成本约为 ¥37.3。前缀缓存是该 harness 中价值最高的机制，compaction 策略（减少触发、触发后保持前缀稳定）直接决定成本。
+2. **输出仅占 token 的 2.0%，却占成本 11%**；未缓存输入占 token 98%、占成本 89%。压缩成本的两个杠杆：减少上下文失效、控制输出长度。thinking_budget=16384 下平均输出 535 tok/call、平均延迟 4.5 s。
 
 ![API latency distribution](charts/api_latency.png)
 
 ## 10. 失败案例分析
 
-- ansible/83909bf：150/150 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- ansible/a26c325：4/42 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- ansible/f327e65：4/175 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- element-hq/5dfde12：9/61 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- flipt-io/2ca5dfb：2/2 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- future-architect/5af1a22：4/11 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- gravitational/1316e67：5/5 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- gravitational/89f0432：1/1 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- internetarchive/53d376b：5/8 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- protonmail/944adbf：10/10 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
-- qutebrowser/21b426b：1/28 个测试未通过（官方 verifier）。根因分析见 Full Run 1 报告失败案例分析章节。
+- ansible/83909bf：150/150 个测试未通过（官方 verifier）。Full Run 1 亦未通过，可对照其失败案例分析。
+- ansible/a26c325：4/42 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- ansible/f327e65：4/175 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- element-hq/5dfde12：9/61 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- flipt-io/2ca5dfb：2/2 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- future-architect/5af1a22：4/11 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- gravitational/1316e67：5/5 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- gravitational/89f0432：1/1 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- internetarchive/53d376b：5/8 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- protonmail/944adbf：10/10 个测试未通过（官方 verifier）。详见 §5 总结与 §8 行为分析。
+- qutebrowser/21b426b：1/28 个测试未通过（官方 verifier）。Full Run 1 亦未通过，可对照其失败案例分析。
 
 ## 11. 统计方法说明
 
