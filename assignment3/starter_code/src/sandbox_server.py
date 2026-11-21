@@ -229,6 +229,44 @@ def do_search(mode: str, query: str, path: str, cwd: str) -> dict:
     return {"content": "\n".join(matches) if matches else "No matches found."}
 
 
+def do_edit(path, old_string, new_string, replace_all: bool, cwd: str) -> dict:
+    """Apply one exact-match replacement in a single file."""
+    if not isinstance(path, str) or not path.strip():
+        raise PathError("path is required and must be a non-empty string")
+    if not isinstance(old_string, str) or not old_string:
+        raise PathError("old_string is required and must be a non-empty string")
+    if not isinstance(new_string, str):
+        raise PathError("new_string must be a string")
+    real = resolve(path, cwd)
+    if not os.path.isfile(real):
+        raise PathError(f"file not found: {path}")
+    try:
+        with open(real, "r", encoding="utf-8", errors="replace") as fh:
+            content = fh.read()
+    except OSError as e:
+        raise PathError(f"could not read {path}: {e}")
+    count = content.count(old_string)
+    if replace_all:
+        if count == 0:
+            raise PathError(f"old_string not found (replace_all): {old_string[:60]!r}")
+        updated = content.replace(old_string, new_string)
+        replaced = count
+    else:
+        if count != 1:
+            raise PathError(
+                f"old_string appeared {count} times; expected exactly once "
+                f"(add context or set replace_all): {old_string[:60]!r}"
+            )
+        updated = content.replace(old_string, new_string, 1)
+        replaced = 1
+    try:
+        with open(real, "w", encoding="utf-8") as fh:
+            fh.write(updated)
+    except OSError as e:
+        raise PathError(f"could not write {path}: {e}")
+    return {"path": path, "replaced": replaced}
+
+
 def do_edit_batch(files, cwd: str) -> dict:
     """Apply a batch of exact-match edits with per-hunk results.
 
@@ -365,7 +403,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, do_search(
                     req.get("mode"), req.get("query"), req.get("path", "."), cwd))
             if self.path == "/edit":
-                return self._send(200, do_edit_batch(req.get("files"), cwd))
+                if "files" in req:
+                    return self._send(200, do_edit_batch(req.get("files"), cwd))
+                return self._send(200, do_edit(
+                    req.get("path"), req.get("old_string"), req.get("new_string"),
+                    bool(req.get("replace_all", False)), cwd,
+                ))
             return self._send(404, {"error": f"unknown route {self.path}"})
         except PathError as e:
             return self._send(400, {"error": str(e)})

@@ -8,9 +8,9 @@
 |---|---|
 | 模型 | `qwen3.8-flash`（standard 档，reasoning_effort=medium），全程未用 expert |
 | 任务集 | 15 题（5 道课程 v2 原题 + 10 道恢复的 A2 实例），官方 v2 verifier 评分 |
-| 实验规模 | 16 轮 · 95 次任务尝试 |
-| 当前成绩 | 跨轮并集 **15/15**；standard 档单轮最佳 **13/15**（full_run_5）；starter 档 full_run_6 = 4/15（跨档验证） |
-| 成本 | standard $0.075/solved（full_run_5，最低）；starter $1.31/solved（full_run_6，17.5×，无缓存收益） |
+| 实验规模 | 17 轮 · 110 次任务尝试（已收官） |
+| 当前成绩 | 跨轮并集 **15/15**；standard 档单轮稳定 **12–13/15**（最高 13/15：full_run_1 / full_run_5；收官轮 full_run_7 = 12/15） |
+| 成本 | standard **¥6.10 / $0.072/solved**（full_run_7，历史最低，缓存 90.1%）；starter $1.31/solved（full_run_6，17.5×，反面验证） |
 | 基准版本 | Full Run 1 锚定 `a731a16`（src 指纹 `3da72e34d286f470`），后续轮次逐轮登记 |
 
 ## 2. 任务集（稳定）
@@ -42,6 +42,7 @@
 | full_run_4 | 11-21 02:17 | `afa3045` | qwen3.8-flash·medium | 全量 15 | 11/15（21b426b 首过；83909bfa 栽于 git-add 0 字节） | **15/15 并集** | [Full Run 4](reports/full_run_4.md) |
 | full_run_5 | 11-21 05:44 | `e1cd0e6` | qwen3.8-flash·medium | 全量 15 | 13/15（git 纪律+逐hunk修复验证成功） | **15/15 并集** | [Full Run 5](reports/full_run_5.md) |
 | full_run_6 | 11-21 08:26 | `40fd5f2`+starter | **qwen3.6-flash**（starter 档） | 全量 15 | 4/15（跨档验证：能力/成本/指令遵循三面劣于 standard） | **15/15 并集** | [Full Run 6](reports/full_run_6.md) |
+| full_run_7 | 11-21 18:45 | `b3ce89b` | qwen3.8-flash·medium | 全量 15 | 12/15（¥6.10 / $0.072 历史最低；944adbf、83909bf 双翻盘） | **15/15 并集** | [Full Run 7](reports/full_run_7.md) |
 
 模型档位 = `CS2680_MODEL_STANDARD`（qwen3.8-flash）全程不变，expert/starter 从未启用；xhigh→medium 指 thinking 预算（reasoning_effort，V2 提示词同期切换，平均输出 4,515 → 840 tok/call）。
 
@@ -88,6 +89,12 @@
 → **starter 档三面同时劣于 standard**：能力 4/15（standard 13/15，且失败的多是 standard 轻松通过的题，trace 出现文件路径幻觉）；成本 ¥37.31（standard run5 ¥6.94 的 5.4 倍）、$/solved **$1.31**（standard $0.075 的 17.5 倍）——主因是价格倒挂（¥1.2/¥7.2 > ¥0.8/¥2.7）；此外本次实测 qwen3.6-flash 响应未回填 cached_tokens（全 None），按 0 缓存估算，但官方文档将其列入上下文缓存支持模型、隐式命中率本就不确定，真实成本可能低于该上界；指令遵循——run5 里 standard 全 15 题 0 次违反的 git 纪律，starter 下有 3/15 题 git add/stash，83909bfa 因此再次 0 字节。
 → **判定**：档位选择本身是关键工程变量，starter 不是"更便宜"而是"更贵且更差"，本 harness 正确档位是 standard。实验后已将 model_id 回退为 MODEL_STANDARD（run6 快照冻结的是 starter 指纹，记录不受回退影响）。
 
+**V11 · 11-21 · `b3ce89b` 实测（full_run_7）** — 并发只读工具（`read_file`/`search`/`read_archived_output` 同轮并发）+ 分阶段进度提醒 + 紧凑 Plan 渲染/去重 + 顶层目录/测试根盘点 + 公共输出契约最小变更 + `a3run.sh`/`run_all.py` 双保险日志归档 + 报告脚本多模型定价/变量遮蔽修复。
+→ **成本与效率双创最优**：总花费 **¥6.10（$0.86）**、**$0.072/solved** 均为全量历史最低，缓存命中 **90.1%**，API 调用 993→**929（−6.4%）**；并发只读触发 **62 轮（134 次调用）**，`read_file` 364→305、`search` 66→48、`bash` 最长单次 596→307 s；`agent.log`（1.24MB）完整落盘恢复全部层 1 归档观测。
+→ **定向改造兑现**：Run 5 唯二失败题双双翻盘——`protonmail/944adbf`（0/10，25 轮 / ¥0.062）靠顶层目录盘点一次拿下，`ansible/83909bf`（0/150，63 轮 / ¥0.388）靠保留原报错骨架全过；`git` 纪律连续两轮 0 违纪。单轮 **12/15**（3 题失败：`21b426b` 1/28 字符串方差、`89f0432` 1/1 偶发回归、`5dfde12` 9/61 首编迟至第 51 轮）。
+
+**V12 · 11-21 · 收官代码整理（未重跑）** — 针对 V11 暴露的 18 次 `edit_file(files=[{path,...}])` 漏写/错放 `path` 问题，将 `edit_file` 收敛为最贴近模型预训练分布的标准扁平接口 `edit_file(path, old_string, new_string, replace_all)`（多处/跨文件修改靠同轮多调用按序执行），并在未知工具报错中附带合法工具清单；全部 replay 与单元测试通过，以此版本收官归档。
+
 ## 5. Token 定价对标（稳定）
 
 课程 API 三档（project_description.md L212-214）与本实验 config.py 配置的三档 Qwen 模型目录价对照（Qwen 价取阿里云百炼北京区 2026-11-20，¥ 按 7.1 折 $；每 M token）：
@@ -114,6 +121,9 @@
 | [Full Run 2](reports/full_run_2.md) | 2 题重跑 | 83909bfa 通过 → 14/15；采样噪声判定示范 |
 | [Full Run 3](reports/full_run_3.md) | 15 题（V6 实测） | 12/15、¥6.11、cache 91.7%、两回归根因、逐题行为总结 |
 | [Full Run 4](reports/full_run_4.md) | 15 题（#4+#1 实测） | 11/15、¥6.13、新机制采纳证据、git-add 0 字节 bug、21b426b 首过 |
+| [Full Run 5](reports/full_run_5.md) | 15 题（V9 实测） | 13/15、¥6.94、$0.075/solved、逐 hunk 降错率 31%→9%、git 纪律 0 违纪 |
+| [Full Run 6](reports/full_run_6.md) | 15 题（V10 starter 跨档） | 4/15、¥37.31、$1.31/solved；能力/成本/指令遵循三面劣于 standard |
+| [Full Run 7](reports/full_run_7.md) | 15 题（V11 收官实测） | 12/15、**¥6.10 / $0.072/solved 历史最低**、并发只读 62 轮、944adbf & 83909bf 双翻盘 |
 | [图表目录](reports/charts/) | 全部轮次 | 时间构成/工具分布/动作耗时/延迟分布/成本构成 |
 | [run_snapshots.json](reports/run_snapshots.json) | 逐轮 | 版本指纹+配置+逐题指标（对比锚点） |
 | [tmp_all_attempts.json](reports/tmp_all_attempts.json) | 全量 | 35 次尝试明细 |
@@ -126,6 +136,7 @@
 1. **成本处于头部、速度是短板**：medium thinking + 高缓存命中 + 零 expert 的成本路线在两种定价口径下都优于 ~90% 榜上提交；速度受本地并发与无轮数预算约束。（11-20 立；V7 实测 $/solved 进一步至 0.072）
 2. **失败题根因是规格歧义 × 精确匹配评分**：83909bfa 措辞、a26c325 调用位置、webclients 导出形式均为精确字符串掷硬币（单样本命中率高方差大）。（11-21 修订：V5/V7 曾判 21b426b 的 repr 偏差为"跨版本确定性、零反馈不可修复"，V8 被推翻——第四次尝试靠任务给出的 commit 线索推断出 gold 格式并通过；教训是"确定性"结论受小样本支配，且单次行为变化归因于机制前必须查 thinking 证据。曾提议的"近 miss 重试"利用评分反馈被否决——属刷题机制，与设计红线相悖；此类方差视为基准固有噪声，通过率以多轮并集口径评估，run1–4 并集已覆盖 15/15。）
 3. **上下文经济学是第一成本杠杆——已验证**：（11-20 立论时旧压缩每轮击穿缓存致未缓存输入占 51%；V7 实测批量+水位线+出生预览把 cache% 提到 91.7%、成本 −20%，且通过率变化经 trace 定位与压缩无关。原"待验证"结论兑现为设计正确。）
+4. **收官总结（11-21 · V1–V12 完整演进）**：历经 7 轮正式全量评测（110 次任务尝试），在不触碰任何评测协议红线的前提下，将一套通用 coding agent 稳定推进至 **跨轮 15/15 全覆盖、单轮 12–13/15（80%–87%）、¥6.10 / $0.072/solved、缓存命中 90.1%**。全周期验证了四条可复用的 agent 工程原则：(a) **上下文前缀稳定**（批量归档+水位线+出生即预览）是降本第一杠杆；(b) **档位选择决定上限与经济性**（standard `qwen3.8-flash` 全面碾压价格倒挂的 starter `qwen3.6-flash`）；(c) **工具接口应顺应模型预训练分布**（同轮并发只读被自然采纳 62 轮，而反直觉的 `files` 嵌套批编辑频发空 `path`，最终回归标准扁平 `edit_file(path, old_string, new_string, replace_all)`）；(d) **观测与归档是工程迭代的前提**（补齐 `agent.log` 双保险与多模型报告口径后，每次改动均可量化归因）。
 
 ## 8. 方法与局限性声明（稳定）
 

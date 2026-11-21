@@ -232,10 +232,7 @@ def _tool_call_summary(name: str, arguments_json: str) -> str:
         return (f"search: {args.get('mode', '')} {str(args.get('query', ''))[:60]!r} "
                 f"in {args.get('path', '.')}")
     if name == "edit_file":
-        hunks = args.get("files") or []
-        paths = [str(h.get("path", "")) for h in hunks if isinstance(h, dict)]
-        shown = ", ".join(paths[:3]) + (f" (+{len(paths) - 3})" if len(paths) > 3 else "")
-        return f"edit_file: {len(hunks)} hunk(s) -> {shown}"
+        return f"edit_file: {args.get('path', '')}"
     if name == "create_file":
         return f"create_file: {args.get('path', '')}"
     if name == "read_archived_output":
@@ -485,8 +482,7 @@ class Agent:
                 )
                 for call, name, arguments, result, is_error, duration_s in outcomes:
                     if not is_error and name in ("edit_file", "create_file"):
-                        if name == "create_file" or (isinstance(result, dict) and result.get("applied", 0) > 0):
-                            has_edited = True
+                        has_edited = True
                     body = _tool_content(result)
                     # Large bash outputs are archived at birth: the message is
                     # born in its final preview form and is never rewritten,

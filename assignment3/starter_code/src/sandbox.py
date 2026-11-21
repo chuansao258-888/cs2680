@@ -83,6 +83,15 @@ class Sandbox:
             http_timeout=60,
         )["existed"]
 
+    def edit_text(self, path: str, old_string: str, new_string: str,
+                  replace_all: bool = False) -> dict:
+        return self._post(
+            "/edit",
+            {"path": path, "old_string": old_string, "new_string": new_string,
+             "replace_all": replace_all, "cwd": self.workdir},
+            http_timeout=60,
+        )
+
     def edit_batch(self, files: list) -> dict:
         return self._post(
             "/edit",

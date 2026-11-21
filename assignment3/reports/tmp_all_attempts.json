@@ -24,6 +24,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261119-175813/madsOpt_logs/0",
   "hid_epoch": 1795006333,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795006333_90288",
   "tests": "4/8"
  },
  {
@@ -51,6 +52,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261119-212050/madsOpt_logs/0",
   "hid_epoch": 1795082301,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795082301_801",
   "tests": "8/8"
  },
  {
@@ -78,6 +80,7 @@
   "verdict": "?",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261119-223545/madsOpt_logs/0",
   "hid_epoch": 1795096349,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795096349_159842",
   "tests": ""
  },
  {
@@ -105,6 +108,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-004216/madsOpt_logs/0",
   "hid_epoch": 1795098946,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795098946_183338",
   "tests": "0/8"
  },
  {
@@ -132,6 +136,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/0",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "1/8"
  },
  {
@@ -159,6 +164,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/1",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "2/2"
  },
  {
@@ -186,6 +192,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/2",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "11/11"
  },
  {
@@ -213,6 +220,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/3",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "0/5"
  },
  {
@@ -240,6 +248,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/4",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "61/61"
  },
  {
@@ -267,6 +276,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/5",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "0/175"
  },
  {
@@ -294,6 +304,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/6",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "0/202"
  },
  {
@@ -321,6 +332,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/7",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "3/3"
  },
  {
@@ -348,6 +360,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-031526/madsOpt_logs/8",
   "hid_epoch": 1795106536,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795106536_211536",
   "tests": "123/123"
  },
  {
@@ -375,6 +388,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/0",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/8"
  },
  {
@@ -402,6 +416,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/1",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/2"
  },
  {
@@ -429,6 +444,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/2",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/11"
  },
  {
@@ -456,6 +472,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/3",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/5"
  },
  {
@@ -483,6 +500,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/4",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/61"
  },
  {
@@ -510,6 +528,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/5",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/175"
  },
  {
@@ -537,6 +556,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/6",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/202"
  },
  {
@@ -564,6 +584,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/7",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "0/3"
  },
  {
@@ -591,6 +612,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-053210/madsOpt_logs/8",
   "hid_epoch": 1795115734,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795115734_1022",
   "tests": "123/123"
  },
  {
@@ -618,6 +640,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/0",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -645,6 +668,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/1",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -672,6 +696,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/2",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -699,6 +724,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/3",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -726,6 +752,7 @@
   "verdict": "?",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/4",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -753,6 +780,7 @@
   "verdict": "?",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-155316/madsOpt_logs/5",
   "hid_epoch": 1795123951,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795123951_126775",
   "tests": ""
  },
  {
@@ -780,6 +808,7 @@
   "verdict": "?",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-161651/madsOpt_logs/0",
   "hid_epoch": 1795161207,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795161207_731",
   "tests": ""
  },
  {
@@ -807,6 +836,7 @@
   "verdict": "?",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-161651/madsOpt_logs/1",
   "hid_epoch": 1795161207,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795161207_731",
   "tests": ""
  },
  {
@@ -834,6 +864,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-180731/madsOpt_logs/0",
   "hid_epoch": 1795162618,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795162618_20822",
   "tests": "0/42"
  },
  {
@@ -861,6 +892,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-180731/madsOpt_logs/1",
   "hid_epoch": 1795162618,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795162618_20822",
   "tests": "28/28"
  },
  {
@@ -888,6 +920,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-180731/madsOpt_logs/2",
   "hid_epoch": 1795162618,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795162618_20822",
   "tests": "150/150"
  },
  {
@@ -915,6 +948,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-211442/madsOpt_logs/0",
   "hid_epoch": 1795169261,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795169261_53466",
   "tests": "1/28"
  },
  {
@@ -942,6 +976,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261120-211442/madsOpt_logs/1",
   "hid_epoch": 1795169261,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795169261_53466",
   "tests": "0/150"
  },
  {
@@ -969,6 +1004,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/0",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/8"
  },
  {
@@ -996,6 +1032,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/1",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/2"
  },
  {
@@ -1023,6 +1060,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/2",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/11"
  },
  {
@@ -1050,6 +1088,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/3",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/5"
  },
  {
@@ -1077,6 +1116,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/4",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/61"
  },
  {
@@ -1104,6 +1144,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/5",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/175"
  },
  {
@@ -1131,6 +1172,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/6",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/202"
  },
  {
@@ -1158,6 +1200,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/7",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/3"
  },
  {
@@ -1185,6 +1228,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/8",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/123"
  },
  {
@@ -1212,6 +1256,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/9",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/9"
  },
  {
@@ -1239,6 +1284,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/10",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/1"
  },
  {
@@ -1266,6 +1312,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/11",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "0/10"
  },
  {
@@ -1293,6 +1340,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/12",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "1/42"
  },
  {
@@ -1320,6 +1368,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/13",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "1/28"
  },
  {
@@ -1347,6 +1396,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-021756/madsOpt_logs/14",
   "hid_epoch": 1795180516,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795180516_82888",
   "tests": "1/150"
  },
  {
@@ -1374,6 +1424,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/0",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/8"
  },
  {
@@ -1401,6 +1452,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/1",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/2"
  },
  {
@@ -1428,6 +1480,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/2",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/11"
  },
  {
@@ -1455,6 +1508,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/3",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/5"
  },
  {
@@ -1482,6 +1536,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/4",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "1/61"
  },
  {
@@ -1509,6 +1564,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/5",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/175"
  },
  {
@@ -1536,6 +1592,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/6",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "1/202"
  },
  {
@@ -1563,6 +1620,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/7",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/3"
  },
  {
@@ -1590,6 +1648,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/8",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/123"
  },
  {
@@ -1617,6 +1676,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/9",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/9"
  },
  {
@@ -1644,6 +1704,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/10",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/1"
  },
  {
@@ -1671,6 +1732,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/11",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "10/10"
  },
  {
@@ -1698,6 +1760,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/12",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/42"
  },
  {
@@ -1725,6 +1788,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/13",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "0/28"
  },
  {
@@ -1752,6 +1816,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-054421/madsOpt_logs/14",
   "hid_epoch": 1795198687,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795198687_313920",
   "tests": "150/150"
  },
  {
@@ -1779,6 +1844,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/0",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/8"
  },
  {
@@ -1806,6 +1872,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/1",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/2"
  },
  {
@@ -1833,6 +1900,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/2",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/11"
  },
  {
@@ -1860,6 +1928,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/3",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/5"
  },
  {
@@ -1887,6 +1956,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/4",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/61"
  },
  {
@@ -1914,6 +1984,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/5",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/175"
  },
  {
@@ -1941,6 +2012,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/6",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/202"
  },
  {
@@ -1968,6 +2040,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/7",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/3"
  },
  {
@@ -1995,6 +2068,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/8",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/123"
  },
  {
@@ -2022,6 +2096,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/9",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/9"
  },
  {
@@ -2049,6 +2124,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/10",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/1"
  },
  {
@@ -2076,6 +2152,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/11",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "10/10"
  },
  {
@@ -2103,6 +2180,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/12",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/42"
  },
  {
@@ -2130,6 +2208,7 @@
   "verdict": "PASS",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/13",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "0/28"
  },
  {
@@ -2157,6 +2236,7 @@
   "verdict": "FAIL",
   "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-090522/madsOpt_logs/14",
   "hid_epoch": 1795211062,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795211062_504320",
   "tests": "1/150"
  },
  {
@@ -2178,12 +2258,13 @@
   "reason": "done",
   "iters": 90,
   "start": "2026-11-21T01:06:12+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "0",
   "label": "instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/0",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/0",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "5/8"
  },
  {
@@ -2205,12 +2286,13 @@
   "reason": "error",
   "iters": 70,
   "start": "2026-11-21T01:06:16+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "1",
   "label": "instance_flipt-io__flipt-2ca5dfb3513e4e786d2b037075617cccc286d5c3",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/1",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/1",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "2/2"
  },
  {
@@ -2232,12 +2314,13 @@
   "reason": "iteration_limit",
   "iters": 99,
   "start": "2026-11-21T01:12:28+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "2",
   "label": "instance_future-architect__vuls-5af1a227339e46c7abf3f2815e4c636a0c01098e",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/2",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/2",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "4/11"
  },
  {
@@ -2259,12 +2342,13 @@
   "reason": "error",
   "iters": 77,
   "start": "2026-11-21T01:31:03+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "3",
   "label": "instance_gravitational__teleport-1316e6728a3ee2fc124e2ea0cc6a02044c87a144-v626ec2a48416b10a88641359a169d99e935ff037",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/3",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/3",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "5/5"
  },
  {
@@ -2286,12 +2370,13 @@
   "reason": "done",
   "iters": 85,
   "start": "2026-11-21T01:31:48+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "4",
   "label": "instance_element-hq__element-web-5dfde12c1c1c0b6e48f17e3405468593e39d9492-vnan",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/4",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/4",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "9/61"
  },
  {
@@ -2313,12 +2398,13 @@
   "reason": "done",
   "iters": 53,
   "start": "2026-11-21T01:36:19+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "5",
   "label": "instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/5",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/5",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "4/175"
  },
  {
@@ -2340,12 +2426,13 @@
   "reason": "done",
   "iters": 99,
   "start": "2026-11-21T01:40:02+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "6",
   "label": "instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
   "verdict": "PASS",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/6",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/6",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "0/202"
  },
  {
@@ -2367,12 +2454,13 @@
   "reason": "done",
   "iters": 98,
   "start": "2026-11-21T01:43:55+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "7",
   "label": "instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a",
   "verdict": "PASS",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/7",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/7",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "0/3"
  },
  {
@@ -2394,12 +2482,13 @@
   "reason": "error",
   "iters": 57,
   "start": "2026-11-21T01:51:05+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "8",
   "label": "instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
   "verdict": "PASS",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/8",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/8",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "0/123"
  },
  {
@@ -2421,12 +2510,13 @@
   "reason": "done",
   "iters": 20,
   "start": "2026-11-21T01:55:47+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "9",
   "label": "instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26",
   "verdict": "PASS",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/9",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/9",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "0/9"
  },
  {
@@ -2448,12 +2538,13 @@
   "reason": "iteration_limit",
   "iters": 99,
   "start": "2026-11-21T01:57:16+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "10",
   "label": "instance_gravitational__teleport-89f0432ad5dc70f1f6a30ec3a8363d548371a718",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/10",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/10",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "1/1"
  },
  {
@@ -2475,12 +2566,13 @@
   "reason": "done",
   "iters": 17,
   "start": "2026-11-21T01:59:13+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "11",
   "label": "instance_protonmail__webclients-944adbfe06644be0789f59b78395bdd8567d8547",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/11",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/11",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "10/10"
  },
  {
@@ -2502,12 +2594,13 @@
   "reason": "error",
   "iters": 47,
   "start": "2026-11-21T02:05:50+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "12",
   "label": "instance_ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/12",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/12",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "4/42"
  },
  {
@@ -2529,12 +2622,13 @@
   "reason": "done",
   "iters": 26,
   "start": "2026-11-21T02:06:24+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "13",
   "label": "instance_qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/13",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/13",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "1/28"
  },
  {
@@ -2556,12 +2650,433 @@
   "reason": "done",
   "iters": 95,
   "start": "2026-11-21T02:09:11+00:00",
-  "run": "CURRENT",
+  "run": "20261121-184141",
   "key": "14",
   "label": "instance_ansible__ansible-83909bfa22573777e3db5688773bda59721962ad-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
   "verdict": "FAIL",
-  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/14",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/previous_runs/20261121-184141/madsOpt_logs/14",
   "hid_epoch": 1795223163,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795223163_711431",
   "tests": "150/150"
+ },
+ {
+  "calls": 80,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2468557,
+  "out": 90112,
+  "cached": 2016768,
+  "model_s": 1501.25,
+  "wall_s": 1599.0,
+  "cost_cny": 0.8064104000000002,
+  "cost_unc_cny": 0.36143120000000006,
+  "cost_cac_cny": 0.20167679999999996,
+  "cost_out_cny": 0.24330239999999992,
+  "cost_nocache_in_cny": 1.974845599999999,
+  "reason": "done",
+  "iters": 77,
+  "start": "2026-11-21T10:42:00+00:00",
+  "run": "CURRENT",
+  "key": "0",
+  "label": "instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/0",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/8"
+ },
+ {
+  "calls": 88,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2946713,
+  "out": 64060,
+  "cached": 2636544,
+  "model_s": 1350.64,
+  "wall_s": 2020.0,
+  "cost_cny": 0.6847516000000001,
+  "cost_unc_cny": 0.24813520000000003,
+  "cost_cac_cny": 0.26365439999999996,
+  "cost_out_cny": 0.17296200000000006,
+  "cost_nocache_in_cny": 2.3573703999999993,
+  "reason": "done",
+  "iters": 86,
+  "start": "2026-11-21T10:42:04+00:00",
+  "run": "CURRENT",
+  "key": "1",
+  "label": "instance_flipt-io__flipt-2ca5dfb3513e4e786d2b037075617cccc286d5c3",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/1",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/2"
+ },
+ {
+  "calls": 59,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 1701291,
+  "out": 38229,
+  "cached": 1455616,
+  "model_s": 716.45,
+  "wall_s": 2328.0,
+  "cost_cny": 0.4453198999999999,
+  "cost_unc_cny": 0.19654000000000005,
+  "cost_cac_cny": 0.14556159999999999,
+  "cost_out_cny": 0.10321829999999999,
+  "cost_nocache_in_cny": 1.3610328000000003,
+  "reason": "done",
+  "iters": 57,
+  "start": "2026-11-21T11:08:43+00:00",
+  "run": "CURRENT",
+  "key": "2",
+  "label": "instance_future-architect__vuls-5af1a227339e46c7abf3f2815e4c636a0c01098e",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/2",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/11"
+ },
+ {
+  "calls": 96,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2784935,
+  "out": 77810,
+  "cached": 2329344,
+  "model_s": 1547.24,
+  "wall_s": 1915.0,
+  "cost_cny": 0.8074941999999998,
+  "cost_unc_cny": 0.3644728000000001,
+  "cost_cac_cny": 0.23293439999999999,
+  "cost_out_cny": 0.21008700000000008,
+  "cost_nocache_in_cny": 2.227947999999999,
+  "reason": "done",
+  "iters": 93,
+  "start": "2026-11-21T11:15:48+00:00",
+  "run": "CURRENT",
+  "key": "3",
+  "label": "instance_gravitational__teleport-1316e6728a3ee2fc124e2ea0cc6a02044c87a144-v626ec2a48416b10a88641359a169d99e935ff037",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/3",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/5"
+ },
+ {
+  "calls": 71,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2061558,
+  "out": 48613,
+  "cached": 1823232,
+  "model_s": 1044.06,
+  "wall_s": 1375.0,
+  "cost_cny": 0.5042390999999999,
+  "cost_unc_cny": 0.19066079999999994,
+  "cost_cac_cny": 0.18232319999999994,
+  "cost_out_cny": 0.13125510000000004,
+  "cost_nocache_in_cny": 1.6492464,
+  "reason": "done",
+  "iters": 69,
+  "start": "2026-11-21T11:47:36+00:00",
+  "run": "CURRENT",
+  "key": "4",
+  "label": "instance_element-hq__element-web-5dfde12c1c1c0b6e48f17e3405468593e39d9492-vnan",
+  "verdict": "FAIL",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/4",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "9/61"
+ },
+ {
+  "calls": 67,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2014416,
+  "out": 46865,
+  "cached": 1838080,
+  "model_s": 1012.98,
+  "wall_s": 1273.0,
+  "cost_cny": 0.45141230000000004,
+  "cost_unc_cny": 0.14106880000000002,
+  "cost_cac_cny": 0.18380800000000003,
+  "cost_out_cny": 0.1265355,
+  "cost_nocache_in_cny": 1.611532799999999,
+  "reason": "done",
+  "iters": 65,
+  "start": "2026-11-21T11:47:47+00:00",
+  "run": "CURRENT",
+  "key": "5",
+  "label": "instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/5",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/175"
+ },
+ {
+  "calls": 54,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 1931971,
+  "out": 31017,
+  "cached": 1846272,
+  "model_s": 746.15,
+  "wall_s": 1124.0,
+  "cost_cny": 0.3369323,
+  "cost_unc_cny": 0.06855920000000003,
+  "cost_cac_cny": 0.18462720000000005,
+  "cost_out_cny": 0.08374590000000007,
+  "cost_nocache_in_cny": 1.5455767999999999,
+  "reason": "done",
+  "iters": 53,
+  "start": "2026-11-21T12:09:04+00:00",
+  "run": "CURRENT",
+  "key": "6",
+  "label": "instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/6",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/202"
+ },
+ {
+  "calls": 41,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 913041,
+  "out": 16201,
+  "cached": 874496,
+  "model_s": 377.76,
+  "wall_s": 965.0,
+  "cost_cny": 0.16202830000000007,
+  "cost_unc_cny": 0.03083599999999999,
+  "cost_cac_cny": 0.08744960000000003,
+  "cost_out_cny": 0.043742699999999995,
+  "cost_nocache_in_cny": 0.7304328000000001,
+  "reason": "done",
+  "iters": 40,
+  "start": "2026-11-21T12:10:35+00:00",
+  "run": "CURRENT",
+  "key": "7",
+  "label": "instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/7",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/3"
+ },
+ {
+  "calls": 95,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2532766,
+  "out": 44537,
+  "cached": 2362112,
+  "model_s": 1112.7,
+  "wall_s": 1328.0,
+  "cost_cny": 0.49298429999999993,
+  "cost_unc_cny": 0.1365232000000001,
+  "cost_cac_cny": 0.23621119999999995,
+  "cost_out_cny": 0.12024989999999995,
+  "cost_nocache_in_cny": 2.0262127999999997,
+  "reason": "done",
+  "iters": 93,
+  "start": "2026-11-21T12:26:43+00:00",
+  "run": "CURRENT",
+  "key": "8",
+  "label": "instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/8",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/123"
+ },
+ {
+  "calls": 15,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 98216,
+  "out": 3352,
+  "cached": 82944,
+  "model_s": 84.57000000000001,
+  "wall_s": 125.0,
+  "cost_cny": 0.029562399999999996,
+  "cost_unc_cny": 0.012217600000000002,
+  "cost_cac_cny": 0.0082944,
+  "cost_out_cny": 0.0090504,
+  "cost_nocache_in_cny": 0.0785728,
+  "reason": "done",
+  "iters": 14,
+  "start": "2026-11-21T12:27:52+00:00",
+  "run": "CURRENT",
+  "key": "9",
+  "label": "instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/9",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/9"
+ },
+ {
+  "calls": 55,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 1388948,
+  "out": 21378,
+  "cached": 1305600,
+  "model_s": 594.4,
+  "wall_s": 1140.0,
+  "cost_cny": 0.254959,
+  "cost_unc_cny": 0.06667840000000001,
+  "cost_cac_cny": 0.13056000000000004,
+  "cost_out_cny": 0.0577206,
+  "cost_nocache_in_cny": 1.1111583999999999,
+  "reason": "done",
+  "iters": 54,
+  "start": "2026-11-21T12:30:01+00:00",
+  "run": "CURRENT",
+  "key": "10",
+  "label": "instance_gravitational__teleport-89f0432ad5dc70f1f6a30ec3a8363d548371a718",
+  "verdict": "FAIL",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/10",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "1/1"
+ },
+ {
+  "calls": 26,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 297401,
+  "out": 6558,
+  "cached": 276480,
+  "model_s": 172.6,
+  "wall_s": 742.0,
+  "cost_cny": 0.062091400000000005,
+  "cost_unc_cny": 0.0167368,
+  "cost_cac_cny": 0.027648,
+  "cost_out_cny": 0.0177066,
+  "cost_nocache_in_cny": 0.23792080000000004,
+  "reason": "done",
+  "iters": 25,
+  "start": "2026-11-21T12:48:55+00:00",
+  "run": "CURRENT",
+  "key": "11",
+  "label": "instance_protonmail__webclients-944adbfe06644be0789f59b78395bdd8567d8547",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/11",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/10"
+ },
+ {
+  "calls": 75,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2256757,
+  "out": 41724,
+  "cached": 2055936,
+  "model_s": 929.73,
+  "wall_s": 1190.0,
+  "cost_cny": 0.4789052000000001,
+  "cost_unc_cny": 0.1606568,
+  "cost_cac_cny": 0.2055936,
+  "cost_out_cny": 0.11265479999999999,
+  "cost_nocache_in_cny": 1.8054055999999996,
+  "reason": "done",
+  "iters": 73,
+  "start": "2026-11-21T12:49:05+00:00",
+  "run": "CURRENT",
+  "key": "12",
+  "label": "instance_ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/12",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/42"
+ },
+ {
+  "calls": 43,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 1164260,
+  "out": 18628,
+  "cached": 1117696,
+  "model_s": 505.41,
+  "wall_s": 982.0,
+  "cost_cny": 0.19931640000000003,
+  "cost_unc_cny": 0.037251200000000005,
+  "cost_cac_cny": 0.1117696,
+  "cost_out_cny": 0.05029559999999998,
+  "cost_nocache_in_cny": 0.9314079999999998,
+  "reason": "done",
+  "iters": 42,
+  "start": "2026-11-21T13:01:21+00:00",
+  "run": "CURRENT",
+  "key": "13",
+  "label": "instance_qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "verdict": "FAIL",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/13",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "1/28"
+ },
+ {
+  "calls": 64,
+  "comp_unknown": 0,
+  "models": [
+   "qwen3.8-flash"
+  ],
+  "in": 2260816,
+  "out": 28735,
+  "cached": 2140416,
+  "model_s": 855.42,
+  "wall_s": 1154.0,
+  "cost_cny": 0.3879461000000002,
+  "cost_unc_cny": 0.09632000000000003,
+  "cost_cac_cny": 0.21404160000000003,
+  "cost_out_cny": 0.07758449999999999,
+  "cost_nocache_in_cny": 1.8086528000000002,
+  "reason": "done",
+  "iters": 63,
+  "start": "2026-11-21T13:08:59+00:00",
+  "run": "CURRENT",
+  "key": "14",
+  "label": "instance_ansible__ansible-83909bfa22573777e3db5688773bda59721962ad-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "verdict": "PASS",
+  "tdir": "/mnt/c/Users/guany/Desktop/CS2680 Modern AI Systems Agents and System Optimizations/assignment3/starter_code/madsOpt_logs/14",
+  "hid_epoch": 1795257710,
+  "hdir": "/home/guany/.cache/cs2680_a3/hostlogs/starter_code_1795257710_803113",
+  "tests": "0/150"
  }
 ]

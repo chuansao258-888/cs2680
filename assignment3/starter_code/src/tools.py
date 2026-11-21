@@ -123,32 +123,33 @@ class EditFileTool(Tool):
     schema = {"type": "function", "function": {
         "name": name,
         "description": (
-            "Apply a batch of exact-match edits. Each old_string must appear "
-            "exactly once in its file (or set replace_all for every "
-            "occurrence); hunks apply in order to the evolving content. Valid "
-            "hunks are applied and every hunk's outcome is reported, so a "
-            "rejected hunk can be fixed alone without redoing the rest. Put "
-            "every hunk of one logical change in a single call, across files."
+            "Replace exact text in an existing file. old_string must appear "
+            "exactly once in the file unless replace_all is true. To edit "
+            "multiple places or files in one turn, emit multiple edit_file calls."
         ),
         "parameters": {"type": "object", "properties": {
-            "files": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
-                "path": {"type": "string", "minLength": 1,
-                         "description": "Required non-empty path relative to the working directory (must be set on every hunk)."},
-                "old_string": {"type": "string", "minLength": 1,
-                               "description": "Required non-empty exact text to replace."},
-                "new_string": {"type": "string",
-                               "description": "Replacement text (may be empty string to delete old_string)."},
-                "replace_all": {"type": "boolean",
-                                "description": "Replace every occurrence instead of requiring a unique match."},
-            }, "required": ["path", "old_string", "new_string"]}},
-        }, "required": ["files"]},
+            "path": {"type": "string", "minLength": 1,
+                     "description": "Path relative to the working directory."},
+            "old_string": {"type": "string", "minLength": 1,
+                           "description": "Exact text to replace."},
+            "new_string": {"type": "string",
+                           "description": "Replacement text (may be empty string to delete old_string)."},
+            "replace_all": {"type": "boolean",
+                            "description": "Replace every occurrence instead of requiring a unique match."},
+        }, "required": ["path", "old_string", "new_string"]},
     }}
 
     def execute(self, sb, args, task_memory):
-        files = args.get("files")
-        if not isinstance(files, list) or not files:
-            raise ValueError("files must be a non-empty list of hunks")
-        return sb.edit_batch(files)
+        path = args.get("path")
+        old_string = args.get("old_string")
+        new_string = args.get("new_string")
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError("path is required and must be a non-empty string")
+        if not isinstance(old_string, str) or not old_string:
+            raise ValueError("old_string is required and must be a non-empty string")
+        if not isinstance(new_string, str):
+            raise ValueError("new_string must be a string")
+        return sb.edit_text(path, old_string, new_string, bool(args.get("replace_all", False)))
 
 
 class CreateFileTool(Tool):
@@ -235,5 +236,6 @@ def execute_tool(sb, name: str, args: dict[str, Any], task_memory) -> Any:
     try:
         tool = TOOL_BY_NAME[name]
     except KeyError as exc:
-        raise ValueError(f"unknown tool: {name}") from exc
+        valid = ", ".join(TOOL_BY_NAME)
+        raise ValueError(f"unknown tool: {name}. Valid tools: {valid}") from exc
     return tool.execute(sb, args, task_memory)
