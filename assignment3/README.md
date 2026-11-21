@@ -85,7 +85,7 @@
 → **残留**：webclients 代码库位置误判 run4 同因复发（模型断言"隐藏测试多半在 packages/metrics/tests"、全程未探查仓库根，属任务理解非机制问题）；replace_all 全 run 仅 1 次采纳，引导偏弱；edit_file 仍有空 path hunk。三项均为通用工程可继续收紧项，不涉及评测协议。
 
 **V10 · 11-21 · `40fd5f2`+starter 硬编码（full_run_6）** — 跨模型档验证：把 agent 模型从 qwen3.8-flash（standard）临时硬编码切到 qwen3.6-flash（starter）跑全量，验证 harness 在不同档的表现。
-→ **starter 档三面同时劣于 standard**：能力 4/15（standard 13/15，且失败的多是 standard 轻松通过的题，trace 出现文件路径幻觉）；成本 ¥37.31（standard run5 ¥6.94 的 5.4 倍）、$/solved **$1.31**（standard $0.075 的 17.5 倍）——根因是 qwen3.6-flash **不返回 cached_tokens（全 None）**，前缀缓存该档不生效，叠加价格倒挂（¥1.2/¥7.2 > ¥0.8/¥2.7）；指令遵循——run5 里 standard 全 15 题 0 次违反的 git 纪律，starter 下有 3/15 题 git add/stash，83909bfa 因此再次 0 字节。
+→ **starter 档三面同时劣于 standard**：能力 4/15（standard 13/15，且失败的多是 standard 轻松通过的题，trace 出现文件路径幻觉）；成本 ¥37.31（standard run5 ¥6.94 的 5.4 倍）、$/solved **$1.31**（standard $0.075 的 17.5 倍）——主因是价格倒挂（¥1.2/¥7.2 > ¥0.8/¥2.7）；此外本次实测 qwen3.6-flash 响应未回填 cached_tokens（全 None），按 0 缓存估算，但官方文档将其列入上下文缓存支持模型、隐式命中率本就不确定，真实成本可能低于该上界；指令遵循——run5 里 standard 全 15 题 0 次违反的 git 纪律，starter 下有 3/15 题 git add/stash，83909bfa 因此再次 0 字节。
 → **判定**：档位选择本身是关键工程变量，starter 不是"更便宜"而是"更贵且更差"，本 harness 正确档位是 standard。实验后已将 model_id 回退为 MODEL_STANDARD（run6 快照冻结的是 starter 指纹，记录不受回退影响）。
 
 ## 5. Token 定价对标（稳定）

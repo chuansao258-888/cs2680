@@ -73,12 +73,7 @@ assignment3/starter_code/src/agentic_loop.py
 本轮：git `40fd5f2`，指纹 `c31c4da0f6a02268`（含未提交修改）。
 
 **相对 Full Run 5**（git `e1cd0e6`，指纹 `da02c9571e6a8864`）：代码有变更（行为级）。
-未提交修改（相对该参照提交）：
-```
-assignment3/starter_code/src/agentic_loop.py | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-```
-
+git diff 不可用；以指纹差异为准，需人工比对。
 
 **相对 Full Run 1**（git `a731a16`，指纹 `3da72e34d286f470`）：代码有变更（行为级）。
 提交：
@@ -102,14 +97,14 @@ assignment3/starter_code/src/agentic_loop.py   |  43 ++-
 
 未提交修改（相对该参照提交）：
 ```
-assignment3/starter_code/src/agentic_loop.py   |  46 ++++---
+assignment3/starter_code/src/agentic_loop.py   |  43 +++++--
  assignment3/starter_code/src/config.py         |  98 ++++++++++----
  assignment3/starter_code/src/memory.py         | 172 +++++++++++++++++++------
  assignment3/starter_code/src/prompts.py        |  25 +++-
  assignment3/starter_code/src/sandbox.py        |   5 +-
  assignment3/starter_code/src/sandbox_server.py |  95 +++++++++++---
  assignment3/starter_code/src/tools.py          |  43 +++++--
- 7 files changed, 373 insertions(+), 111 deletions(-)
+ 7 files changed, 371 insertions(+), 110 deletions(-)
 ```
 
 
@@ -188,7 +183,7 @@ assignment3/starter_code/src/agentic_loop.py   |  46 ++++---
 **结论：starter 档在本 harness 上全面劣于 standard 档，且不只是能力问题。**
 
 - **能力**：4/15（standard run5 为 13/15）。失败的多是 standard 轻松通过的题（53d376b 5/8、2ca5dfb 2/2、5af1a22 4/11、1316e67 5/5、f327e65 4/175、a26c325 4/42），且 trace 里出现文件路径幻觉（如 `galaxy.galaxygalle`）——模型本身更弱、更旧。
-- **成本**：¥37.31 ≈ standard run5（¥6.94）的 5.4 倍；$/solved **$1.31**（standard $0.075 的 17.5 倍）。根因两条叠加：(1) **qwen3.6-flash 不返回 cached_tokens（全为 None）**——前缀缓存机制在该档不可观测/不生效，每轮全量重计输入；(2) 价格倒挂——qwen3.6-flash 目录价（¥1.2/¥7.2）本就高于 qwen3.8-flash（¥0.8/¥2.7）。
+- **成本**：¥37.31 ≈ standard run5（¥6.94）的 5.4 倍；$/solved **$1.31**（standard $0.075 的 17.5 倍）。两条叠加：(1) 价格倒挂——qwen3.6-flash 目录价（¥1.2/¥7.2）本就高于 qwen3.8-flash（¥0.8/¥2.7）；(2) 本次实测 qwen3.6-flash 的响应**未回填 cached_tokens（全 None）**，故按 0 缓存命中估算——但官方文档将 qwen3.6-flash 列入上下文缓存支持模型，隐式缓存命中率本就不确定，真实结算成本可能低于此上界估算。
 - **指令遵循**：git 纪律提示词（run5 里 standard 全 15 题 0 次违反）在 starter 下**有 3/15 题违反**（git add/stash），83909bfa 因此再次 0 字节补丁——弱模型更不可靠地遵守提示词约束。
 
 **判定**：starter 档不是「更便宜的选择」，而是「更贵且更差」——能力、成本、指令遵循三面同时劣于 standard。本 harness 的正确档位是 standard（qwen3.8-flash）；跨档实验证明档位选择本身就是关键工程变量。
