@@ -8,9 +8,9 @@
 |---|---|
 | 模型 | `qwen3.8-flash`（standard 档，reasoning_effort=medium），全程未用 expert |
 | 任务集 | 15 题（5 道课程 v2 原题 + 10 道恢复的 A2 实例），官方 v2 verifier 评分 |
-| 实验规模 | 14 轮 · 65 次任务尝试 · 4,146 次 API 调用 · 119.9M / 3.0M tokens |
-| 当前成绩 | 跨轮并集 **15/15**（每题至少解出过一次）；单轮最佳仍 13/15（run4 = 11/15，字符串掷硬币此消彼长） |
-| 成本 | 最新轮 $0.078/solved（run4，¥6.13/11）；缓存命中稳定在 91%（基准 83.1%） |
+| 实验规模 | 15 轮 · 80 次任务尝试 · ~5,100 次 API 调用 |
+| 当前成绩 | 跨轮并集 **15/15**；最新单轮 full_run_5 = **13/15**（git 纪律+逐hunk修复验证成功，回到 run1 水平） |
+| 成本 | 最新轮 $0.075/solved（历史最低）；缓存命中 88.5%（基准 83.1%） |
 | 基准版本 | Full Run 1 锚定 `a731a16`（src 指纹 `3da72e34d286f470`），后续轮次逐轮登记 |
 
 ## 2. 任务集（稳定）
@@ -40,6 +40,7 @@
 | 重跑 | 11-20 18:07 | `a731a16`+trace 标注 | qwen3.8-flash·medium | 失败 2 题 | 1/2（83909bfa） | **14/15** | [Full Run 2](reports/full_run_2.md) |
 | full_run_3 | 11-21 02:15 | `68c363f` | qwen3.8-flash·medium | 全量 15 | 12/15（a26c325、83909bfa 回归） | **14/15** | [Full Run 3](reports/full_run_3.md) |
 | full_run_4 | 11-21 02:17 | `afa3045` | qwen3.8-flash·medium | 全量 15 | 11/15（21b426b 首过；83909bfa 栽于 git-add 0 字节） | **15/15 并集** | [Full Run 4](reports/full_run_4.md) |
+| full_run_5 | 11-21 05:44 | `e1cd0e6` | qwen3.8-flash·medium | 全量 15 | 13/15（git 纪律+逐hunk修复验证成功） | **15/15 并集** | [Full Run 5](reports/full_run_5.md) |
 
 模型档位 = `CS2680_MODEL_STANDARD`（qwen3.8-flash）全程不变，expert/starter 从未启用；xhigh→medium 指 thinking 预算（reasoning_effort，V2 提示词同期切换，平均输出 4,515 → 840 tok/call）。
 
@@ -76,6 +77,11 @@
 → **两项新机制均被充分采纳、无副作用**：批量编辑 133 次调用承载约 300 hunk、72 次多 hunk（2eac0df 用 8+8+7 文件批一次完成接口重命名，89f0432 两批零失败做 ioutil→io 清扫）；read 分页 281 次读取中 201 次带 start_line、90 次触发分页并往后翻页（a26c325 的 2000+ 行 urls.py 靠逐页扫描恢复通过）。成本 ¥6.13、cache 91.1% 持平——红利已被 V6 吃掉，本轮预期就是"验证采纳、不劣化"。
 → **意外收获与一处修正**：21b426b 历史首次通过（0/28），但子代理证据显示真因是**模型从任务给出的 commit 线索推断出 gold repr 格式**，非 V7 猜测的"工具改动翻转确定性决策"——V7 的"确定性实锤"结论据实修正（且它本就是 3 样本小推断）。原子校验还拦截了一次双重编码事故（1316e67 把 files 序列化成字符串被逐字符拆成 4413 伪 hunk、整批拒绝），验证了防呆。
 → **新暴露的通用 bug**：83909bfa 收尾 `git add -A` 把改动暂存，harness `git add -N . && git diff` 只抓未暂存 → 0 字节补丁、150/150 全挂（模型 thinking 已意识到 staged 却判断"留着无妨"）。修法为提示词纪律"勿 git add/stash/commit"，待落地。单轮 11/15 的下滑来自此 bug + webclients 代码库位置误判（实现放进 `packages/metrics/` 子包，gold 测试在仓库根 `tests/`，根 jest 工程 TS 转译失败 → 0 测试收集）+ 两道字符串近失，均非新工具退化。
+
+**V9 · 11-21 · `e1cd0e6` 实测（full_run_5）** — 逐 hunk 编辑结果 + git 纪律提示词 + replace_all 引导首次全量验证。
+→ **两项定向修复均验证成功**：(a) git 纪律——全 15 题 bash 中 0 次 git add/stash/commit，83909bfa 补丁从 0 字节恢复到 13603 字节（模型甚至把误用的 `git rm --cached` 主动 `git reset` 退回未暂存，规则已内化），该题从灾难性空补丁降级为正常 1/150 字符串近失；(b) 逐 hunk 编辑——edit_file 失败率 31%→9%（237 应用/63 拒绝，拒绝带 index+原因、当轮即修，合法 hunk 不再连坐）。
+→ **成绩 13/15（+2，回到 run1 水平）**，$/solved $0.075 历史最低，缓存 88.5% 保持。element-web/c580ebf 恢复通过，21b426b 靠检索真实上游 commit 确认 `vmap=` 写法保持通过。
+→ **残留**：webclients 代码库位置误判 run4 同因复发（模型断言"隐藏测试多半在 packages/metrics/tests"、全程未探查仓库根，属任务理解非机制问题）；replace_all 全 run 仅 1 次采纳，引导偏弱；edit_file 仍有空 path hunk。三项均为通用工程可继续收紧项，不涉及评测协议。
 
 ## 5. Token 定价对标（稳定）
 

@@ -1,19 +1,5 @@
-diff --git a/config/default.yml b/config/default.yml
-index 56389f06..633191c7 100644
---- a/config/default.yml
-+++ b/config/default.yml
-@@ -47,3 +47,9 @@
- 
- # meta:
- #   check_for_updates: true
-+
-+# metrics:
-+#   enabled: true
-+#   exporter: prometheus
-+#   otlp:
-+#     endpoint: localhost:4317
 diff --git a/config/flipt.schema.cue b/config/flipt.schema.cue
-index 041a8153..412fd0f2 100644
+index 041a8153..33767f3b 100644
 --- a/config/flipt.schema.cue
 +++ b/config/flipt.schema.cue
 @@ -20,6 +20,7 @@ import "strings"
@@ -24,25 +10,24 @@ index 041a8153..412fd0f2 100644
  	server?:         #server
  	tracing?:        #tracing
  	ui?:             #ui
-@@ -256,6 +257,16 @@ import "strings"
- 		state_directory?:   string | *"$HOME/.config/flipt"
+@@ -269,6 +270,15 @@ import "strings"
+ 		grpc_conn_max_age_grace?: =~#duration
  	}
  
 +	#metrics: {
 +		enabled?:  bool | *true
 +		exporter?: *"prometheus" | "otlp"
-+
 +		otlp?: {
 +			endpoint?: string
 +			headers?: [string]: string
 +		}
 +	}
 +
- 	#server: {
- 		protocol?:                *"http" | "https"
- 		host?:                    string | *"0.0.0.0"
+ 	#tracing: {
+ 		enabled?:  bool | *false
+ 		exporter?: *"jaeger" | "zipkin" | "otlp"
 diff --git a/config/flipt.schema.json b/config/flipt.schema.json
-index e51eb633..e025712d 100644
+index e51eb633..36add401 100644
 --- a/config/flipt.schema.json
 +++ b/config/flipt.schema.json
 @@ -38,6 +38,9 @@
@@ -55,9 +40,9 @@ index e51eb633..e025712d 100644
      "server": {
        "$ref": "#/definitions/server"
      },
-@@ -881,6 +884,36 @@
+@@ -928,6 +931,38 @@
        "required": [],
-       "title": "Meta"
+       "title": "Server"
      },
 +    "metrics": {
 +      "type": "object",
@@ -77,7 +62,8 @@ index e51eb633..e025712d 100644
 +          "additionalProperties": false,
 +          "properties": {
 +            "endpoint": {
-+              "type": "string"
++              "type": "string",
++              "default": "localhost:4317"
 +            },
 +            "headers": {
 +              "type": ["object", "null"],
@@ -87,9 +73,10 @@ index e51eb633..e025712d 100644
 +          "title": "OTLP"
 +        }
 +      },
++      "required": [],
 +      "title": "Metrics"
 +    },
-     "server": {
+     "tracing": {
        "type": "object",
        "additionalProperties": false,
 diff --git a/go.mod b/go.mod
@@ -139,14 +126,14 @@ index 6ffcfb08..cab81066 100644
  go.opentelemetry.io/otel/trace v1.25.0/go.mod h1:hCCs70XM/ljO+BeQkyFnbK28SBIJ/Emuha+ccrCRT7I=
  go.opentelemetry.io/proto/otlp v1.1.0 h1:2Di21piLrCqJ3U3eXGCTPHE9R8Nh+0uglSnOyxikMeI=
 diff --git a/internal/cmd/grpc.go b/internal/cmd/grpc.go
-index 188e2f78..6cf2cc96 100644
+index 188e2f78..b3ac0bdf 100644
 --- a/internal/cmd/grpc.go
 +++ b/internal/cmd/grpc.go
 @@ -19,6 +19,7 @@ import (
  	"go.flipt.io/flipt/internal/config"
  	"go.flipt.io/flipt/internal/containers"
  	"go.flipt.io/flipt/internal/info"
-+	"go.flipt.io/flipt/internal/metrics"
++	fliptmetrics "go.flipt.io/flipt/internal/metrics"
  	fliptserver "go.flipt.io/flipt/internal/server"
  	analytics "go.flipt.io/flipt/internal/server/analytics"
  	"go.flipt.io/flipt/internal/server/analytics/clickhouse"
@@ -158,29 +145,34 @@ index 188e2f78..6cf2cc96 100644
  	tracesdk "go.opentelemetry.io/otel/sdk/trace"
  	"go.uber.org/zap"
  	"go.uber.org/zap/zapcore"
-@@ -173,6 +175,20 @@ func NewGRPCServer(
- 		logger.Debug("otel tracing enabled", zap.String("exporter", cfg.Tracing.Exporter.String()))
- 	}
+@@ -117,6 +119,25 @@ func NewGRPCServer(
+ 		return server.ln.Close()
+ 	})
  
++	// metrics exporter and meter provider are configured from the provided
++	// configuration, which is why no exporter is constructed during package
++	// initialization.
 +	if cfg.Metrics.Enabled {
-+		reader, metricsExpShutdown, err := metrics.GetExporter(ctx, &cfg.Metrics)
++		reader, metricsExpShutdown, err := fliptmetrics.GetExporter(ctx, &cfg.Metrics)
 +		if err != nil {
 +			return nil, fmt.Errorf("creating metrics exporter: %w", err)
 +		}
 +
 +		server.onShutdown(metricsExpShutdown)
 +
-+		provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-+		otel.SetMeterProvider(provider)
++		meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
++		otel.SetMeterProvider(meterProvider)
 +
-+		logger.Debug("otel metrics enabled", zap.String("exporter", string(cfg.Metrics.Exporter)))
++		server.onShutdown(meterProvider.Shutdown)
++
++		logger.Debug("otel metrics enabled", zap.String("exporter", cfg.Metrics.Exporter.String()))
 +	}
 +
- 	// base observability inteceptors
- 	interceptors := []grpc.UnaryServerInterceptor{
- 		grpc_recovery.UnaryServerInterceptor(grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
+ 	var store storage.Store
+ 
+ 	switch cfg.Storage.Type {
 diff --git a/internal/config/config.go b/internal/config/config.go
-index c613400e..8788a5be 100644
+index c613400e..6ecee38b 100644
 --- a/internal/config/config.go
 +++ b/internal/config/config.go
 @@ -58,6 +58,7 @@ type Config struct {
@@ -191,8 +183,8 @@ index c613400e..8788a5be 100644
  	Analytics      AnalyticsConfig      `json:"analytics,omitempty" mapstructure:"analytics" yaml:"analytics,omitempty"`
  	Server         ServerConfig         `json:"server,omitempty" mapstructure:"server" yaml:"server,omitempty"`
  	Storage        StorageConfig        `json:"storage,omitempty" mapstructure:"storage" yaml:"storage,omitempty"`
-@@ -591,6 +592,11 @@ func Default() *Config {
- 			StateDirectory:   "",
+@@ -612,6 +613,11 @@ func Default() *Config {
+ 			Events: []string{"*:*"},
  		},
  
 +		Metrics: MetricsConfig{
@@ -200,23 +192,58 @@ index c613400e..8788a5be 100644
 +			Exporter: MetricsPrometheus,
 +		},
 +
- 		Authentication: AuthenticationConfig{
- 			Session: AuthenticationSession{
- 				TokenLifetime: 24 * time.Hour,
+ 		Analytics: AnalyticsConfig{
+ 			Buffer: BufferConfig{
+ 				FlushPeriod: 10 * time.Second,
+diff --git a/internal/config/config_test.go b/internal/config/config_test.go
+index 3ca3fc93..526aed30 100644
+--- a/internal/config/config_test.go
++++ b/internal/config/config_test.go
+@@ -357,6 +357,28 @@ func TestLoad(t *testing.T) {
+ 				return cfg
+ 			},
+ 		},
++		{
++			name: "metrics prometheus",
++			path: "./testdata/metrics/prometheus.yml",
++			expected: func() *Config {
++				cfg := Default()
++				cfg.Metrics.Enabled = true
++				cfg.Metrics.Exporter = MetricsPrometheus
++				return cfg
++			},
++		},
++		{
++			name: "metrics otlp",
++			path: "./testdata/metrics/otlp.yml",
++			expected: func() *Config {
++				cfg := Default()
++				cfg.Metrics.Enabled = true
++				cfg.Metrics.Exporter = MetricsOTLP
++				cfg.Metrics.OTLP.Endpoint = "http://localhost:9999"
++				cfg.Metrics.OTLP.Headers = map[string]string{"api-key": "test-key"}
++				return cfg
++			},
++		},
+ 		{
+ 			name: "database key/value",
+ 			path: "./testdata/database.yml",
 diff --git a/internal/config/metrics.go b/internal/config/metrics.go
 new file mode 100644
-index 00000000..3a166184
+index 00000000..f8d6e4a0
 --- /dev/null
 +++ b/internal/config/metrics.go
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,51 @@
 +package config
 +
-+import "github.com/spf13/viper"
++import (
++	"github.com/spf13/viper"
++)
 +
 +// cheers up the unparam linter
 +var _ defaulter = (*MetricsConfig)(nil)
 +
-+// MetricsConfig contains fields, which configure metrics telemetry
++// MetricsConfig contains fields which configure metrics telemetry
 +// output destinations.
 +type MetricsConfig struct {
 +	Enabled  bool              `json:"enabled" mapstructure:"enabled" yaml:"enabled"`
@@ -233,11 +260,24 @@ index 00000000..3a166184
 +	return nil
 +}
 +
-+// IsZero returns true when the metrics exporter is not enabled.
-+// this is used by yaml marshaling to determine whether the
-+// metrics section of a configuration should be emitted.
++// IsZero returns true if the metrics config is not enabled.
++// This is used for marshalling to YAML for `config init`.
 +func (c MetricsConfig) IsZero() bool {
 +	return !c.Enabled
++}
++
++// MetricsExporter represents the supported metrics exporters.
++type MetricsExporter string
++
++const (
++	// MetricsPrometheus exports metrics via the prometheus pull model.
++	MetricsPrometheus MetricsExporter = "prometheus"
++	// MetricsOTLP exports metrics using the OTLP protocol.
++	MetricsOTLP MetricsExporter = "otlp"
++)
++
++func (e MetricsExporter) String() string {
++	return string(e)
 +}
 +
 +// OTLPMetricsConfig contains fields which configure the OTLP metrics exporter.
@@ -245,14 +285,6 @@ index 00000000..3a166184
 +	Endpoint string            `json:"endpoint,omitempty" mapstructure:"endpoint" yaml:"endpoint,omitempty"`
 +	Headers  map[string]string `json:"headers,omitempty" mapstructure:"headers" yaml:"headers,omitempty"`
 +}
-+
-+// MetricsExporter contains list of supported metrics exporters
-+type MetricsExporter string
-+
-+const (
-+	MetricsPrometheus MetricsExporter = "prometheus"
-+	MetricsOTLP       MetricsExporter = "otlp"
-+)
 diff --git a/internal/config/testdata/marshal/yaml/default.yml b/internal/config/testdata/marshal/yaml/default.yml
 index 88663b26..9921fb15 100644
 --- a/internal/config/testdata/marshal/yaml/default.yml
@@ -264,8 +296,30 @@ index 88663b26..9921fb15 100644
 +metrics:
 +  enabled: true
 +  exporter: prometheus
+diff --git a/internal/config/testdata/metrics/otlp.yml b/internal/config/testdata/metrics/otlp.yml
+new file mode 100644
+index 00000000..bc9de36b
+--- /dev/null
++++ b/internal/config/testdata/metrics/otlp.yml
+@@ -0,0 +1,7 @@
++metrics:
++  enabled: true
++  exporter: otlp
++  otlp:
++    endpoint: http://localhost:9999
++    headers:
++      api-key: test-key
+diff --git a/internal/config/testdata/metrics/prometheus.yml b/internal/config/testdata/metrics/prometheus.yml
+new file mode 100644
+index 00000000..9350d527
+--- /dev/null
++++ b/internal/config/testdata/metrics/prometheus.yml
+@@ -0,0 +1,3 @@
++metrics:
++  enabled: true
++  exporter: prometheus
 diff --git a/internal/metrics/metrics.go b/internal/metrics/metrics.go
-index c70ad192..9f031f8b 100644
+index c70ad192..216c0a87 100644
 --- a/internal/metrics/metrics.go
 +++ b/internal/metrics/metrics.go
 @@ -1,9 +1,15 @@
@@ -280,110 +334,226 @@ index c70ad192..9f031f8b 100644
  
 +	"go.flipt.io/flipt/internal/config"
  	"go.opentelemetry.io/otel"
-+	otlpmetricgrpc "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-+	otlpmetrichttp "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
++	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
++	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
  	"go.opentelemetry.io/otel/exporters/prometheus"
  	"go.opentelemetry.io/otel/metric"
  	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-@@ -13,16 +19,93 @@ import (
+@@ -12,17 +18,114 @@ import (
+ // Meter is the default Flipt-wide otel metric Meter.
  var Meter metric.Meter
  
++var metricExpOnce sync.Once
++
  func init() {
 -	// exporter registers itself on the prom client DefaultRegistrar
 -	exporter, err := prometheus.New()
--	if err != nil {
--		log.Fatal(err)
--	}
-+	// we purposefully avoid creating (and registering) an exporter here, as the
-+	// exporter is dependent on the configuration and can only be constructed
-+	// once it has been loaded (see: GetExporter).
-+	// until then the global meter provider delegates to a no-op provider and
-+	// any instruments created against this meter are re-bound when a real
-+	// provider is registered with otel.SetMeterProvider.
++	// the exporter, and therefore the meter provider consuming it, is built
++	// lazily through GetExporter driven by configuration.
++	// constructing a prometheus exporter here would register collectors on the
++	// prometheus default registrar, which makes building a configured exporter
++	// later fail with duplicate registration errors.
++	//
++	// until a real provider is registered at startup, the global meter provider
++	// behaves as a no-op. the Meter below is a late-bound placeholder: any
++	// instruments built from it before the provider is swapped in are re-bound
++	// when otel.SetMeterProvider is called.
 +	Meter = otel.Meter("github.com/flipt-io/flipt")
 +}
- 
--	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exporter))
--	otel.SetMeterProvider(provider)
-+var (
-+	metricExpOnce sync.Once
-+	metricExp     sdkmetric.Reader
-+	metricExpFunc func(context.Context) error = func(context.Context) error { return nil }
-+	metricExpErr  error
-+)
- 
--	Meter = provider.Meter("github.com/flipt-io/flipt")
-+// GetExporter retrieves a configured sdkmetric.Reader based on the provided
-+// configuration. The exporter is constructed once, subsequent calls return the
-+// result of that initial construction.
++
++// GetExporter builds the metrics exporter from the supplied configuration and
++// returns the SDK reader consuming it, along with a function for shutting the
++// exporter down.
++// The exporter is constructed at most once per process, which is why the
++// underlying sync.Once is package scoped.
 +func GetExporter(ctx context.Context, cfg *config.MetricsConfig) (sdkmetric.Reader, func(context.Context) error, error) {
++	var (
++		reader   sdkmetric.Reader
++		shutdown func(context.Context) error
++		err      error
++	)
++
 +	metricExpOnce.Do(func() {
 +		switch cfg.Exporter {
-+		case config.MetricsOTLP:
-+			u, err := url.Parse(cfg.OTLP.Endpoint)
-+			if err != nil {
-+				metricExpErr = fmt.Errorf("parsing otlp endpoint: %w", err)
++		case config.MetricsPrometheus:
++			// exporter registers itself on the prom client DefaultRegistrar
++			exp, expErr := prometheus.New()
++			if expErr != nil {
++				err = fmt.Errorf("creating prometheus exporter: %w", expErr)
 +				return
 +			}
 +
-+			var reader sdkmetric.Reader
-+			switch u.Scheme {
-+			case "http", "https":
-+				opts := []otlpmetrichttp.Option{
-+					otlpmetrichttp.WithEndpoint(u.Host),
-+					otlpmetrichttp.WithHeaders(cfg.OTLP.Headers),
-+				}
-+				if u.Path != "" {
-+					opts = append(opts, otlpmetrichttp.WithURLPath(u.Path))
-+				}
-+				if u.Scheme == "http" {
-+					opts = append(opts, otlpmetrichttp.WithInsecure())
-+				}
-+
-+				exp, err := otlpmetrichttp.New(ctx, opts...)
-+				if err != nil {
-+					metricExpErr = fmt.Errorf("creating otlp metrics exporter: %w", err)
-+					return
-+				}
-+
-+				reader = sdkmetric.NewPeriodicReader(exp)
-+			default:
-+				// the endpoint is either prefixed with the "grpc" scheme, or
-+				// expressed as a bare host:port pair (i.e. it has no scheme).
-+				endpoint := cfg.OTLP.Endpoint
-+				if u.Scheme == "grpc" {
-+					endpoint = u.Host
-+				}
-+
-+				opts := []otlpmetricgrpc.Option{
-+					otlpmetricgrpc.WithEndpoint(endpoint),
-+					otlpmetricgrpc.WithHeaders(cfg.OTLP.Headers),
-+					// TODO: support TLS
-+					otlpmetricgrpc.WithInsecure(),
-+				}
-+
-+				exp, err := otlpmetricgrpc.New(ctx, opts...)
-+				if err != nil {
-+					metricExpErr = fmt.Errorf("creating otlp metrics exporter: %w", err)
-+					return
-+				}
-+
-+				reader = sdkmetric.NewPeriodicReader(exp)
-+			}
-+
-+			metricExp = reader
-+			metricExpFunc = func(ctx context.Context) error {
-+				return reader.Shutdown(ctx)
-+			}
-+		case config.MetricsPrometheus:
-+			// exporter registers itself on the prom client DefaultRegistrar
-+			metricExp, metricExpErr = prometheus.New()
++			reader = exp
++			shutdown = func(context.Context) error { return nil }
++		case config.MetricsOTLP:
++			reader, shutdown, err = otlpExporter(ctx, cfg)
 +		default:
-+			metricExpErr = fmt.Errorf("unsupported metrics exporter: %s", cfg.Exporter)
++			err = fmt.Errorf("unsupported metrics exporter: %s", cfg.Exporter)
 +		}
 +	})
 +
-+	return metricExp, metricExpFunc, metricExpErr
++	return reader, shutdown, err
++}
++
++// otlpExporter constructs an OTLP metric reader from the supplied metrics
++// configuration. The endpoint may be expressed with a scheme (http, https or
++// grpc) or as a bare host:port, in which case grpc is assumed.
++func otlpExporter(ctx context.Context, cfg *config.MetricsConfig) (sdkmetric.Reader, func(context.Context) error, error) {
++	u, err := url.Parse(cfg.OTLP.Endpoint)
+ 	if err != nil {
+-		log.Fatal(err)
++		return nil, nil, fmt.Errorf("parsing otlp endpoint: %w", err)
+ 	}
+ 
+-	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exporter))
+-	otel.SetMeterProvider(provider)
++	var (
++		reader sdkmetric.Reader
++
++		shutdown = func(context.Context) error { return nil }
++	)
++
++	switch u.Scheme {
++	case "http", "https":
++		opts := []otlpmetrichttp.Option{
++			otlpmetrichttp.WithEndpoint(u.Host),
++			otlpmetrichttp.WithHeaders(cfg.OTLP.Headers),
++		}
++
++		if u.Path != "" {
++			opts = append(opts, otlpmetrichttp.WithURLPath(u.Path))
++		}
++
++		if u.Scheme == "http" {
++			opts = append(opts, otlpmetrichttp.WithInsecure())
++		}
++
++		exp, err := otlpmetrichttp.New(ctx, opts...)
++		if err != nil {
++			return nil, nil, fmt.Errorf("creating otlp http exporter: %w", err)
++		}
++
++		reader, shutdown = sdkmetric.NewPeriodicReader(exp), exp.Shutdown
++	default:
++		// when the endpoint has no scheme, or is expressed with a grpc scheme,
++		// we assume that it is a grpc host:port pair.
++		endpoint := cfg.OTLP.Endpoint
++		if u.Host != "" {
++			endpoint = u.Host
++		}
++
++		exp, err := otlpmetricgrpc.New(ctx,
++			otlpmetricgrpc.WithEndpoint(endpoint),
++			otlpmetricgrpc.WithHeaders(cfg.OTLP.Headers),
++			// TODO: support TLS
++			otlpmetricgrpc.WithInsecure(),
++		)
++		if err != nil {
++			return nil, nil, fmt.Errorf("creating otlp grpc exporter: %w", err)
++		}
++
++		reader, shutdown = sdkmetric.NewPeriodicReader(exp), exp.Shutdown
++	}
+ 
+-	Meter = provider.Meter("github.com/flipt-io/flipt")
++	return reader, shutdown, nil
  }
  
  // MustInt64 returns an instrument provider based on the global Meter.
+diff --git a/internal/metrics/metrics_test.go b/internal/metrics/metrics_test.go
+new file mode 100644
+index 00000000..1571ab80
+--- /dev/null
++++ b/internal/metrics/metrics_test.go
+@@ -0,0 +1,91 @@
++package metrics
++
++import (
++	"context"
++	"errors"
++	"sync"
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++	"go.flipt.io/flipt/internal/config"
++)
++
++func TestGetExporter(t *testing.T) {
++	tests := []struct {
++		name    string
++		cfg     *config.MetricsConfig
++		wantErr error
++	}{
++		{
++			name: "Prometheus",
++			cfg: &config.MetricsConfig{
++				Exporter: config.MetricsPrometheus,
++			},
++		},
++		{
++			name: "OTLP HTTP",
++			cfg: &config.MetricsConfig{
++				Exporter: config.MetricsOTLP,
++				OTLP: config.OTLPMetricsConfig{
++					Endpoint: "http://localhost:4318",
++					Headers:  map[string]string{"key": "value"},
++				},
++			},
++		},
++		{
++			name: "OTLP HTTPS",
++			cfg: &config.MetricsConfig{
++				Exporter: config.MetricsOTLP,
++				OTLP: config.OTLPMetricsConfig{
++					Endpoint: "https://localhost:4318",
++					Headers:  map[string]string{"key": "value"},
++				},
++			},
++		},
++		{
++			name: "OTLP GRPC",
++			cfg: &config.MetricsConfig{
++				Exporter: config.MetricsOTLP,
++				OTLP: config.OTLPMetricsConfig{
++					Endpoint: "grpc://localhost:4317",
++					Headers:  map[string]string{"key": "value"},
++				},
++			},
++		},
++		{
++			name: "OTLP default",
++			cfg: &config.MetricsConfig{
++				Exporter: config.MetricsOTLP,
++				OTLP: config.OTLPMetricsConfig{
++					Endpoint: "localhost:4317",
++					Headers:  map[string]string{"key": "value"},
++				},
++			},
++		},
++		{
++			name:    "Unsupported Exporter",
++			cfg:     &config.MetricsConfig{},
++			wantErr: errors.New("unsupported metrics exporter: "),
++		},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			metricExpOnce = sync.Once{}
++
++			exp, expFunc, err := GetExporter(context.Background(), tt.cfg)
++			if tt.wantErr != nil {
++				assert.EqualError(t, err, tt.wantErr.Error())
++				return
++			}
++
++			assert.NoError(t, err)
++			assert.NotNil(t, exp)
++
++			t.Cleanup(func() {
++				err := expFunc(context.Background())
++				assert.NoError(t, err)
++			})
++		})
++	}
++}

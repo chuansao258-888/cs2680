@@ -69,6 +69,7 @@ assignment3/starter_code/src/agentic_loop.py
 **相对 Full Run 1**（git `a731a16`，指纹 `3da72e34d286f470`）：代码有变更但不影响 agent 行为（仅 run_end 原因标注（iteration_limit/no_choices），属 trace 上报层，不参与决策）。
 提交：
 ```
+e1cd0e6 feat(a3): per-hunk edit results + git-discipline and replace_all prompt rules
 afa3045 feat(a3): read_file source pagination and atomic batch edit with replace_all
 68c363f feat(a3): batch compaction with prefix-cache stability, unified config, tools/reports layout
 ```
@@ -78,11 +79,11 @@ afa3045 feat(a3): read_file source pagination and atomic batch edit with replace
 assignment3/starter_code/src/agentic_loop.py   |  43 ++-
  assignment3/starter_code/src/config.py         |  98 ++++--
  assignment3/starter_code/src/memory.py         | 420 +++++++++++++++----------
- assignment3/starter_code/src/prompts.py        | 196 ++++++------
+ assignment3/starter_code/src/prompts.py        | 201 ++++++------
  assignment3/starter_code/src/sandbox.py        |   5 +-
- assignment3/starter_code/src/sandbox_server.py |  66 ++--
- assignment3/starter_code/src/tools.py          |  42 ++-
- 7 files changed, 548 insertions(+), 322 deletions(-)
+ assignment3/starter_code/src/sandbox_server.py |  95 ++++--
+ assignment3/starter_code/src/tools.py          |  43 ++-
+ 7 files changed, 583 insertions(+), 322 deletions(-)
 ```
 
 未提交修改（相对该参照提交）：
@@ -90,11 +91,11 @@ assignment3/starter_code/src/agentic_loop.py   |  43 ++-
 assignment3/starter_code/src/agentic_loop.py   |  43 +++++--
  assignment3/starter_code/src/config.py         |  98 ++++++++++----
  assignment3/starter_code/src/memory.py         | 172 +++++++++++++++++++------
- assignment3/starter_code/src/prompts.py        |  12 +-
+ assignment3/starter_code/src/prompts.py        |  25 +++-
  assignment3/starter_code/src/sandbox.py        |   5 +-
- assignment3/starter_code/src/sandbox_server.py |  66 +++++++---
- assignment3/starter_code/src/tools.py          |  42 ++++--
- 7 files changed, 332 insertions(+), 106 deletions(-)
+ assignment3/starter_code/src/sandbox_server.py |  95 +++++++++++---
+ assignment3/starter_code/src/tools.py          |  43 +++++--
+ 7 files changed, 371 insertions(+), 110 deletions(-)
 ```
 
 

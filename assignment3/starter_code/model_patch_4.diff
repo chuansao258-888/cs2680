@@ -1,5 +1,5 @@
 diff --git a/src/components/views/settings/devices/useOwnDevices.ts b/src/components/views/settings/devices/useOwnDevices.ts
-index 58f6cef43d..7eb48b9f2c 100644
+index 58f6cef43d..bc0d0de289 100644
 --- a/src/components/views/settings/devices/useOwnDevices.ts
 +++ b/src/components/views/settings/devices/useOwnDevices.ts
 @@ -35,7 +35,7 @@ import { CryptoEvent } from "matrix-js-sdk/src/crypto";
@@ -22,7 +22,7 @@ index 58f6cef43d..7eb48b9f2c 100644
  
      const [devices, setDevices] = useState<DevicesState["devices"]>({});
      const [pushers, setPushers] = useState<DevicesState["pushers"]>([]);
-@@ -138,13 +138,10 @@ export const useOwnDevices = (): DevicesState => {
+@@ -138,14 +138,12 @@ export const useOwnDevices = (): DevicesState => {
      const refreshDevices = useCallback(async () => {
          setIsLoadingDeviceList(true);
          try {
@@ -33,51 +33,74 @@ index 58f6cef43d..7eb48b9f2c 100644
 -            }
              const devices = await fetchDevicesWithVerification(matrixClient, userId);
              setDevices(devices);
-+            // remove client information of devices that no longer exist
-+            pruneClientInformation(Object.keys(devices), matrixClient);
  
++            // prune any client information for devices that no longer exist
++            pruneClientInformation(Object.keys(devices), matrixClient);
++
              const { pushers } = await matrixClient.getPushers();
              setPushers(pushers);
+ 
 diff --git a/src/utils/device/clientInformation.ts b/src/utils/device/clientInformation.ts
-index e97135ab1f..0a75bb40d5 100644
+index e97135ab1f..d7277bd5db 100644
 --- a/src/utils/device/clientInformation.ts
 +++ b/src/utils/device/clientInformation.ts
-@@ -40,8 +40,10 @@ const formatUrl = (): string | undefined => {
+@@ -15,6 +15,7 @@ limitations under the License.
+ */
+ 
+ import { MatrixClient } from "matrix-js-sdk/src/client";
++import { MatrixEvent } from "matrix-js-sdk/src/models/event";
+ 
+ import BasePlatform from "../../BasePlatform";
+ import { IConfigOptions } from "../../IConfigOptions";
+@@ -40,8 +41,9 @@ const formatUrl = (): string | undefined => {
      ].join("");
  };
  
+-export const getClientInformationEventType = (deviceId: string): string =>
+-    `io.element.matrix_client_information.${deviceId}`;
 +const CLIENT_INFORMATION_PREFIX = "io.element.matrix_client_information.";
 +
- export const getClientInformationEventType = (deviceId: string): string =>
--    `io.element.matrix_client_information.${deviceId}`;
-+    `${CLIENT_INFORMATION_PREFIX}${deviceId}`;
++export const getClientInformationEventType = (deviceId: string): string => `${CLIENT_INFORMATION_PREFIX}${deviceId}`;
  
  /**
   * Record extra client information for the current device
-@@ -84,6 +86,37 @@ export const removeClientInformation = async (matrixClient: MatrixClient): Promi
- const sanitizeContentString = (value: unknown): string | undefined =>
-     value && typeof value === "string" ? value : undefined;
+@@ -81,6 +83,50 @@ export const removeClientInformation = async (matrixClient: MatrixClient): Promi
+     }
+ };
  
 +/**
-+ * Remove client information events for devices that no longer exist.
-+ * Iterates through the Matrix client's account data and deletes any client
-+ * information entries whose device IDs are not in the list of valid device IDs.
-+ * @param validDeviceIds - list of the user's device ids that still exist
-+ * @param matrixClient - matrix client
++ * Remove client information for devices that no longer exist
++ *
++ * @param validDeviceIds device ids to keep information for
++ * @param matrixClient
 + */
-+export function pruneClientInformation(validDeviceIds: string[], matrixClient: MatrixClient): void {
-+    // do nothing when the devices are not loaded yet
-+    if (!validDeviceIds.length) {
++export const pruneClientInformation = (validDeviceIds: string[], matrixClient: MatrixClient): void => {
++    // Do nothing if we don't have a valid list of devices
++    // (eg. the device list has not been loaded yet)
++    if (!validDeviceIds?.length) {
 +        return;
 +    }
 +
-+    // @ts-ignore getAccountData returns all account data events when called without an event type
-+    const events: Record<string, unknown> | undefined = matrixClient.getAccountData();
-+    if (!events) {
++    const accountData = matrixClient.store?.accountData as
++        | Record<string, MatrixEvent>
++        | Map<string, MatrixEvent>
++        | MatrixEvent[]
++        | undefined;
++
++    if (!accountData) {
 +        return;
 +    }
 +
-+    for (const eventType of Object.keys(events)) {
++    let eventTypes: string[];
++    if (Array.isArray(accountData)) {
++        eventTypes = accountData.map((event) => event?.getType?.()).filter((type) => !!type) as string[];
++    } else if (accountData instanceof Map) {
++        eventTypes = [...accountData.keys()].map((key) => `${key}`);
++    } else {
++        eventTypes = Object.keys(accountData);
++    }
++
++    for (const eventType of eventTypes) {
 +        if (!eventType.startsWith(CLIENT_INFORMATION_PREFIX)) {
 +            continue;
 +        }
@@ -87,10 +110,10 @@ index e97135ab1f..0a75bb40d5 100644
 +            matrixClient.deleteAccountData(eventType);
 +        }
 +    }
-+}
++};
 +
- export const getDeviceClientInformation = (matrixClient: MatrixClient, deviceId: string): DeviceClientInformation => {
-     const event = matrixClient.getAccountData(getClientInformationEventType(deviceId));
+ const sanitizeContentString = (value: unknown): string | undefined =>
+     value && typeof value === "string" ? value : undefined;
  
 diff --git a/src/voice-broadcast/models/VoiceBroadcastRecording.ts b/src/voice-broadcast/models/VoiceBroadcastRecording.ts
 index e0627731eb..3b29f9368d 100644
@@ -115,22 +138,83 @@ index e0627731eb..3b29f9368d 100644
  
          await this.client.sendMessage(this.infoEvent.getRoomId(), content);
 diff --git a/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx b/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
-index ffc525006d..f4466cdf74 100644
+index ffc525006d..007a6447a5 100644
 --- a/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
 +++ b/src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx
-@@ -16,6 +16,7 @@ limitations under the License.
- 
- import React from "react";
- import { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
-+import { SyncState } from "matrix-js-sdk/src/sync";
- 
- import { hasRoomLiveVoiceBroadcast, VoiceBroadcastInfoEventType, VoiceBroadcastRecordingsStore } from "..";
+@@ -21,6 +21,7 @@ import { hasRoomLiveVoiceBroadcast, VoiceBroadcastInfoEventType, VoiceBroadcastR
  import InfoDialog from "../../components/views/dialogs/InfoDialog";
-@@ -37,6 +38,14 @@ const showAlreadyRecordingDialog = () => {
-     });
- };
+ import { _t } from "../../languageHandler";
+ import Modal from "../../Modal";
++import { checkVoiceBroadcastConnectionError } from "./showConnectionErrorDialog";
  
-+const showConnectionErrorDialog = () => {
+ const showAlreadyRecordingDialog = () => {
+     Modal.createDialog(InfoDialog, {
+@@ -72,6 +73,10 @@ export const checkVoiceBroadcastPreConditions = async (
+     client: MatrixClient,
+     recordingsStore: VoiceBroadcastRecordingsStore,
+ ): Promise<boolean> => {
++    if (checkVoiceBroadcastConnectionError(client)) {
++        return false;
++    }
++
+     if (recordingsStore.getCurrent()) {
+         showAlreadyRecordingDialog();
+         return false;
+diff --git a/src/voice-broadcast/utils/setUpVoiceBroadcastPreRecording.ts b/src/voice-broadcast/utils/setUpVoiceBroadcastPreRecording.ts
+index bb1875a386..484a7e6e84 100644
+--- a/src/voice-broadcast/utils/setUpVoiceBroadcastPreRecording.ts
++++ b/src/voice-broadcast/utils/setUpVoiceBroadcastPreRecording.ts
+@@ -23,6 +23,7 @@ import {
+     VoiceBroadcastPreRecordingStore,
+     VoiceBroadcastRecordingsStore,
+ } from "..";
++import { checkVoiceBroadcastConnectionError } from "./showConnectionErrorDialog";
+ 
+ export const setUpVoiceBroadcastPreRecording = async (
+     room: Room,
+@@ -31,6 +32,11 @@ export const setUpVoiceBroadcastPreRecording = async (
+     recordingsStore: VoiceBroadcastRecordingsStore,
+     preRecordingStore: VoiceBroadcastPreRecordingStore,
+ ): Promise<VoiceBroadcastPreRecording | null> => {
++    // do not set up a pre recording, if the client is not connected
++    if (checkVoiceBroadcastConnectionError(client)) {
++        return null;
++    }
++
+     if (!(await checkVoiceBroadcastPreConditions(room, client, recordingsStore))) {
+         return null;
+     }
+diff --git a/src/voice-broadcast/utils/showConnectionErrorDialog.tsx b/src/voice-broadcast/utils/showConnectionErrorDialog.tsx
+new file mode 100644
+index 0000000000..bb94067ede
+--- /dev/null
++++ b/src/voice-broadcast/utils/showConnectionErrorDialog.tsx
+@@ -0,0 +1,47 @@
++/*
++Copyright 2023 The Matrix.org Foundation C.I.C.
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++*/
++
++import React from "react";
++import { MatrixClient } from "matrix-js-sdk/src/matrix";
++import { SyncState } from "matrix-js-sdk/src/sync";
++
++import InfoDialog from "../../components/views/dialogs/InfoDialog";
++import { _t } from "../../languageHandler";
++import Modal from "../../Modal";
++
++export const showConnectionErrorDialog = (): void => {
 +    Modal.createDialog(InfoDialog, {
 +        title: _t("Connection error"),
 +        description: <p>{_t("Unfortunately we're unable to start a recording right now. Please try again later.")}</p>,
@@ -138,18 +222,42 @@ index ffc525006d..f4466cdf74 100644
 +    });
 +};
 +
- const showInsufficientPermissionsDialog = () => {
-     Modal.createDialog(InfoDialog, {
-         title: _t("Can't start a new voice broadcast"),
-@@ -72,6 +81,11 @@ export const checkVoiceBroadcastPreConditions = async (
-     client: MatrixClient,
-     recordingsStore: VoiceBroadcastRecordingsStore,
- ): Promise<boolean> => {
++/**
++ * Check if the client connection is currently in an error state and, if so,
++ * display a connection error dialog.
++ *
++ * @param client - The MatrixClient.
++ * @returns true, if a connection error was detected, otherwise false.
++ */
++export const checkVoiceBroadcastConnectionError = (client: MatrixClient): boolean => {
 +    if (client.getSyncState() === SyncState.Error) {
 +        showConnectionErrorDialog();
-+        return false;
++        return true;
 +    }
 +
-     if (recordingsStore.getCurrent()) {
-         showAlreadyRecordingDialog();
-         return false;
++    return false;
++};
+diff --git a/src/voice-broadcast/utils/startNewVoiceBroadcastRecording.ts b/src/voice-broadcast/utils/startNewVoiceBroadcastRecording.ts
+index 4c464f7dfa..4661fb57a0 100644
+--- a/src/voice-broadcast/utils/startNewVoiceBroadcastRecording.ts
++++ b/src/voice-broadcast/utils/startNewVoiceBroadcastRecording.ts
+@@ -27,6 +27,7 @@ import {
+     VoiceBroadcastPlaybacksStore,
+ } from "..";
+ import { checkVoiceBroadcastPreConditions } from "./checkVoiceBroadcastPreConditions";
++import { checkVoiceBroadcastConnectionError } from "./showConnectionErrorDialog";
+ 
+ const startBroadcast = async (
+     room: Room,
+@@ -88,6 +89,11 @@ export const startNewVoiceBroadcastRecording = async (
+     playbacksStore: VoiceBroadcastPlaybacksStore,
+     recordingsStore: VoiceBroadcastRecordingsStore,
+ ): Promise<VoiceBroadcastRecording | null> => {
++    // do not start a recording, if the client is not connected
++    if (checkVoiceBroadcastConnectionError(client)) {
++        return null;
++    }
++
+     if (!(await checkVoiceBroadcastPreConditions(room, client, recordingsStore))) {
+         return null;
+     }

