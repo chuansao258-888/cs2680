@@ -1,0 +1,306 @@
+diff --git a/openlibrary/catalog/add_book/load_book.py b/openlibrary/catalog/add_book/load_book.py
+index 8dcf682ec..7f34c05bb 100644
+--- a/openlibrary/catalog/add_book/load_book.py
++++ b/openlibrary/catalog/add_book/load_book.py
+@@ -1,6 +1,11 @@
+ from typing import Any, Final
+ import web
+-from openlibrary.catalog.utils import flip_name, author_dates_match, key_int
++from openlibrary.catalog.utils import (
++    author_dates_match,
++    flip_name,
++    key_int,
++    re_year,
++)
+ 
+ 
+ # Sort by descending length to remove the _longest_ match.
+@@ -131,13 +136,81 @@ def pick_from_matches(author, match):
+     return min(maybe, key=key_int)
+ 
+ 
+-def find_author(name):
++def get_year(date: str | None) -> str | None:
++    """
++    Returns the four digit year of a date, e.g. `1832` for `b. 1832`,
++    or None if there is no year.
++
++    Only the year is relevant when comparing author dates.
++
++    :param str|None date: Date, as found on an author import dict or record
++    :rtype: str|None
++    """
++    if not date:
++        return None
++    if m := re_year.search(date):
++        return m.group(1)
++    return None
++
++
++def dates_match_exact(author: dict, candidate: dict) -> bool:
+     """
+-    Searches OL for an author by name.
++    True if both birth_date and death_date are present in author and their
++    years exactly match the years of candidate. Any difference in years, or a
++    missing year on either side, means the dates do not match exactly.
++
++    :param dict author: Author import representation
++    :param dict candidate: OL author record
++    :rtype: bool
++    """
++    for field in ('birth_date', 'death_date'):
++        year = get_year(author.get(field))
++        if year is None or year != get_year(candidate.get(field)):
++            return False
++    return True
++
++
++def dates_compatible(author: dict, candidate: dict) -> bool:
++    """
++    True if the years of author and candidate do not disagree, ignoring dates
++    that are not available on both sides. A candidate without a birth date is
++    never a match for a dated import, since the dates are needed to tell apart
++    authors who share a name.
++
++    :param dict author: Author import representation
++    :param dict candidate: OL author record
++    :rtype: bool
++    """
++    if ('birth_date' in author) != ('birth_date' in candidate):
++        return False
++    return author_dates_match(author, candidate)
++
++
++def get_surname(name: str) -> str | None:
++    """
++    Best effort guess at the surname of an author, e.g. `Twain` for both
++    `Mark Twain` and `Twain, Mark`.
+ 
+     :param str name: Author's name
++    :rtype: str|None
++    """
++    name = name.strip().rstrip(',').strip()
++    if not name:
++        return None
++    if ',' in name:  # e.g: Twain, Mark
++        return name.split(',')[0].strip() or None
++    # e.g: Harper, John Murdoch, 1845- => Harper John Murdoch
++    parts = [part for part in name.split() if get_year(part) is None]
++    return parts[-1] if parts else None
++
++
++def search_authors(query: dict) -> list[dict]:
++    """
++    Searches OL for author records, following redirects.
++
++    :param dict query: OL author query, e.g. {"name~": "Jane*"}
+     :rtype: list
+-    :return: A list of OL author representations than match name
++    :return: List of matching OL author representations, by OL key
+     """
+ 
+     def walk_redirects(obj, seen):
+@@ -148,56 +221,113 @@ def find_author(name):
+             seen.add(obj['key'])
+         return obj
+ 
+-    q = {'type': '/type/author', 'name': name}  # FIXME should have no limit
+-    reply = list(web.ctx.site.things(q))
+-    authors = [web.ctx.site.get(k) for k in reply]
++    q = {'type': '/type/author', **query}  # FIXME should have no limit
++    authors = [web.ctx.site.get(k) for k in web.ctx.site.things(q)]
++    authors = [a for a in authors if a]
+     if any(a.type.key != '/type/author' for a in authors):
+-        seen = set()
++        seen: set[str] = set()
+         authors = [walk_redirects(a, seen) for a in authors if a['key'] not in seen]
+-    return authors
++    return sorted(authors, key=key_int)
+ 
+ 
+-def find_entity(author):
++def author_candidate(author: dict) -> dict:
+     """
+-    Looks for an existing Author record in OL by name
+-    and returns it if found.
++    Creates a new author candidate from an author import dict, for when OL has
++    no matching author record.
+ 
+     :param dict author: Author import dict {"name": "Some One"}
+-    :rtype: dict|None
+-    :return: Existing Author record, if one is found
++    :rtype: dict
++    """
++    new = {'type': '/type/author'}
++    for f in ('name', 'title', 'personal_name', 'birth_date', 'death_date', 'date'):
++        if f in author:
++            new[f] = author[f]
++    return new
++
++
++def find_author(author: dict) -> list[dict]:
++    """
++    Searches OL for author records matching an author import dict.
++
++    Authors are looked up, in order of preference, on:
++        1. name, together with birth_date and death_date,
++        2. alternate_names, together with birth_date and death_date,
++        3. surname, together with birth_date and death_date.
++
++    Names are matched case-insensitively and `*` may be used as a wildcard.
++    Dates, which are compared on their year alone, are only used when both a
++    birth_date and a death_date are given, otherwise this falls back to
++    matching on the name alone. When there is no match a new author candidate
++    is returned.
++
++    :param dict author: Author import dict {"name": "Some One"}
++    :rtype: list
++    :return: List of matching OL author representations, or a new candidate
+     """
+     name = author['name']
+-    things = find_author(name)
+-    et = author.get('entity_type')
+-    if et and et != 'person':
+-        if not things:
+-            return None
+-        db_entity = things[0]
+-        assert db_entity['type']['key'] == '/type/author'
+-        return db_entity
++    entity_type = author.get('entity_type')
++    # Organizations &c. are only ever matched on their name.
++    dated = (
++        entity_type in (None, 'person')
++        and bool(author.get('birth_date'))
++        and bool(author.get('death_date'))
++    )
++
++    searches = [('name', name)]
+     if ', ' in name:
+-        things += find_author(flip_name(name))
+-    match = []
+-    seen = set()
+-    for a in things:
+-        key = a['key']
+-        if key in seen:
+-            continue
+-        seen.add(key)
+-        orig_key = key
+-        assert a.type.key == '/type/author'
+-        if 'birth_date' in author and 'birth_date' not in a:
+-            continue
+-        if 'birth_date' not in author and 'birth_date' in a:
+-            continue
+-        if not author_dates_match(author, a):
+-            continue
+-        match.append(a)
+-    if not match:
+-        return None
+-    if len(match) == 1:
+-        return match[0]
+-    return pick_from_matches(author, match)
++        searches.append(('name', flip_name(name)))
++    if dated:
++        searches.append(('alternate_names', name))
++        if surname := get_surname(name):
++            searches.append(('name', f'*{surname}*'))
++
++    searches_done: dict[tuple[str, str], list[dict]] = {}
++
++    def search(field: str, pattern: str) -> list[dict]:
++        if (field, pattern) not in searches_done:
++            searches_done[(field, pattern)] = search_authors({f'{field}~': pattern})
++        return searches_done[(field, pattern)]
++
++    # Searches on the name itself, as opposed to the alternate names or the
++    # surname, which are only trusted when the dates match exactly.
++    name_searches = searches[: 1 + (', ' in name)]
++
++    if not dated:
++        # Nothing to disambiguate with, so fall back to matching on name alone.
++        for field, pattern in name_searches:
++            if matches := search(field, pattern):
++                return matches
++        return [author_candidate(author)]
++
++    # An exact match on both years takes precedence, first on the name, then
++    # the alternate names, then the surname.
++    for field, pattern in searches:
++        exact = [a for a in search(field, pattern) if dates_match_exact(author, a)]
++        if exact:
++            return exact
++    # The name alone is still a match, as long as no available years disagree.
++    for field, pattern in name_searches:
++        compatible = [a for a in search(field, pattern) if dates_compatible(author, a)]
++        if compatible:
++            return compatible
++    return [author_candidate(author)]
++
++
++def find_entity(author: dict) -> dict | None:
++    """
++    Looks for an existing Author record in OL for an author import dict,
++    matching on name, alternate_names or surname, together with the birth and
++    death dates, and returns it if found.
++
++    :param dict author: Author import dict {"name": "Some One"}
++    :rtype: dict|None
++    :return: Existing Author record, if one is found
++    """
++    for match in find_author(author):
++        if 'key' in match:
++            assert match['type']['key'] == '/type/author'
++            return match
++    return None
+ 
+ 
+ def remove_author_honorifics(author: dict[str, Any]) -> dict[str, Any]:
+diff --git a/openlibrary/mocks/mock_infobase.py b/openlibrary/mocks/mock_infobase.py
+index 38480ac2a..f1f8e87a8 100644
+--- a/openlibrary/mocks/mock_infobase.py
++++ b/openlibrary/mocks/mock_infobase.py
+@@ -4,6 +4,7 @@
+ import datetime
+ import glob
+ import json
++import re
+ import pytest
+ import web
+ 
+@@ -183,10 +184,36 @@ class MockSite:
+         keys = sorted(keys)
+         return keys[offset : offset + limit]
+ 
++    @staticmethod
++    def regex_ilike(pattern: str, text: str) -> bool:
++        """
++        Return True if `text` matches the `pattern`, mimicking the ILIKE
++        queries that infogami runs in production.
++
++        The match is case-insensitive and covers the whole string, `*` is a
++        wildcard for any sequence of characters, and `_` has no special
++        meaning, e.g.::
++
++            >>> MockSite.regex_ilike('john*', 'John Smith')
++            True
++            >>> MockSite.regex_ilike('John Smith', 'john smith')
++            True
++            >>> MockSite.regex_ilike('*doyle*', 'Arthur Conan Doyle')
++            True
++            >>> MockSite.regex_ilike('san_francisco', 'san francisco')
++            False
++
++        :param str pattern: ILIKE pattern, e.g. "Jane*"
++        :param str text: Value to match against the pattern
++        :rtype: bool
++        """
++        regex = '.*'.join(re.escape(part) for part in pattern.split('*'))
++        return bool(re.fullmatch(regex, text, flags=re.IGNORECASE))
++
+     def filter_index(self, index, name, value):
+         operations = {
+             "~": lambda i, value: isinstance(i.value, str)
+-            and i.value.startswith(web.rstrips(value, "*")),
++            and self.regex_ilike(value, i.value),
+             "<": lambda i, value: i.value < value,
+             ">": lambda i, value: i.value > value,
+             "!": lambda i, value: i.value != value,

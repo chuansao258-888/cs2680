@@ -62,7 +62,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # assignmen
 STARTER = os.path.join(ROOT, "starter_code")
 RDIR = os.path.join(ROOT, "reports")
 ARCH = os.path.join(ROOT, "previous_runs")
-PRICE = {"qwen3.8-flash": (0.8, 0.1, 2.7), "qwen4-max": (None, None, None), "qwen3.6-flash": (None, None, None)}
+# Catalogue prices (RMB per 1M tokens: input, cached-input, output).
+# qwen3.6-flash (starter): ¥1.2/¥7.2 (Beijing, ≤256K tier); returns no cached_tokens,
+# so the cached-input price is unused in practice. qwen4-max prices not yet confirmed.
+PRICE = {"qwen3.8-flash": (0.8, 0.1, 2.7), "qwen4-max": (None, None, None), "qwen3.6-flash": (1.2, 0.15, 7.2)}
 USD = 7.1
 
 
@@ -126,15 +129,16 @@ def scan_task_dir(tdir):
                 iters = r.get("num_iterations")
     pin = sum(c["prompt_tokens"] for c in calls)
     pout = sum(c["completion_tokens"] for c in calls)
-    cached = sum(c.get("cached_tokens", 0) for c in calls)
+    cached = sum(c.get("cached_tokens") or 0 for c in calls)
     lat = sum(c.get("latency_s", 0) for c in calls)
     cost = 0.0
     for c in calls:
         p = PRICE.get(c.get("model_id"))
         if not p or p[0] is None:
             continue
-        cost += ((c["prompt_tokens"] - c.get("cached_tokens", 0)) * p[0]
-                 + c.get("cached_tokens", 0) * p[1]
+        ct = c.get("cached_tokens") or 0
+        cost += ((c["prompt_tokens"] - ct) * p[0]
+                 + ct * p[1]
                  + c["completion_tokens"] * p[2]) / 1e6
     wall = (last - first).total_seconds() if first and last else None
     return {
@@ -666,6 +670,17 @@ RUN_REFLECTIONS = {
         "- **replace_all**：全 run 仅 1 次（a26c325 的 ciphers=None 重复替换）——引导生效但模型仍偏保守，倾向逐处列 hunk。",
         "",
         "**结论**：本轮两项定向修复（0 字节补丁、编辑连坐）**均验证成功**，单轮成绩回到 13/15、$/solved 创新低，缓存收益保持——是明确的净提升。剩余失败一是字符串掷硬币（83909bfa，方差固有）、二是代码库位置误判（webclients，属任务理解，非机制问题）。replace_all 采纳率与空 path hunk 校验是下一步可继续收紧的通用项。",
+    ],
+    6: [
+        "本节回答：**换用 starter 档（qwen3.6-flash）跑同一套 harness，agent 表现如何**——这是跨模型档的通用能力验证，非调参。",
+        "",
+        "**结论：starter 档在本 harness 上全面劣于 standard 档，且不只是能力问题。**",
+        "",
+        "- **能力**：4/15（standard run5 为 13/15）。失败的多是 standard 轻松通过的题（53d376b 5/8、2ca5dfb 2/2、5af1a22 4/11、1316e67 5/5、f327e65 4/175、a26c325 4/42），且 trace 里出现文件路径幻觉（如 `galaxy.galaxygalle`）——模型本身更弱、更旧。",
+        "- **成本**：¥37.31 ≈ standard run5（¥6.94）的 5.4 倍；$/solved **$1.31**（standard $0.075 的 17.5 倍）。根因两条叠加：(1) **qwen3.6-flash 不返回 cached_tokens（全为 None）**——前缀缓存机制在该档不可观测/不生效，每轮全量重计输入；(2) 价格倒挂——qwen3.6-flash 目录价（¥1.2/¥7.2）本就高于 qwen3.8-flash（¥0.8/¥2.7）。",
+        "- **指令遵循**：git 纪律提示词（run5 里 standard 全 15 题 0 次违反）在 starter 下**有 3/15 题违反**（git add/stash），83909bfa 因此再次 0 字节补丁——弱模型更不可靠地遵守提示词约束。",
+        "",
+        "**判定**：starter 档不是「更便宜的选择」，而是「更贵且更差」——能力、成本、指令遵循三面同时劣于 standard。本 harness 的正确档位是 standard（qwen3.8-flash）；跨档实验证明档位选择本身就是关键工程变量。",
     ],
 }
 

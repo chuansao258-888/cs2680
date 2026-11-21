@@ -8,9 +8,9 @@
 |---|---|
 | 模型 | `qwen3.8-flash`（standard 档，reasoning_effort=medium），全程未用 expert |
 | 任务集 | 15 题（5 道课程 v2 原题 + 10 道恢复的 A2 实例），官方 v2 verifier 评分 |
-| 实验规模 | 15 轮 · 80 次任务尝试 · ~5,100 次 API 调用 |
-| 当前成绩 | 跨轮并集 **15/15**；最新单轮 full_run_5 = **13/15**（git 纪律+逐hunk修复验证成功，回到 run1 水平） |
-| 成本 | 最新轮 $0.075/solved（历史最低）；缓存命中 88.5%（基准 83.1%） |
+| 实验规模 | 16 轮 · 95 次任务尝试 |
+| 当前成绩 | 跨轮并集 **15/15**；standard 档单轮最佳 **13/15**（full_run_5）；starter 档 full_run_6 = 4/15（跨档验证） |
+| 成本 | standard $0.075/solved（full_run_5，最低）；starter $1.31/solved（full_run_6，17.5×，无缓存收益） |
 | 基准版本 | Full Run 1 锚定 `a731a16`（src 指纹 `3da72e34d286f470`），后续轮次逐轮登记 |
 
 ## 2. 任务集（稳定）
@@ -41,6 +41,7 @@
 | full_run_3 | 11-21 02:15 | `68c363f` | qwen3.8-flash·medium | 全量 15 | 12/15（a26c325、83909bfa 回归） | **14/15** | [Full Run 3](reports/full_run_3.md) |
 | full_run_4 | 11-21 02:17 | `afa3045` | qwen3.8-flash·medium | 全量 15 | 11/15（21b426b 首过；83909bfa 栽于 git-add 0 字节） | **15/15 并集** | [Full Run 4](reports/full_run_4.md) |
 | full_run_5 | 11-21 05:44 | `e1cd0e6` | qwen3.8-flash·medium | 全量 15 | 13/15（git 纪律+逐hunk修复验证成功） | **15/15 并集** | [Full Run 5](reports/full_run_5.md) |
+| full_run_6 | 11-21 08:26 | `40fd5f2`+starter | **qwen3.6-flash**（starter 档） | 全量 15 | 4/15（跨档验证：能力/成本/指令遵循三面劣于 standard） | **15/15 并集** | [Full Run 6](reports/full_run_6.md) |
 
 模型档位 = `CS2680_MODEL_STANDARD`（qwen3.8-flash）全程不变，expert/starter 从未启用；xhigh→medium 指 thinking 预算（reasoning_effort，V2 提示词同期切换，平均输出 4,515 → 840 tok/call）。
 
@@ -82,6 +83,10 @@
 → **两项定向修复均验证成功**：(a) git 纪律——全 15 题 bash 中 0 次 git add/stash/commit，83909bfa 补丁从 0 字节恢复到 13603 字节（模型甚至把误用的 `git rm --cached` 主动 `git reset` 退回未暂存，规则已内化），该题从灾难性空补丁降级为正常 1/150 字符串近失；(b) 逐 hunk 编辑——edit_file 失败率 31%→9%（237 应用/63 拒绝，拒绝带 index+原因、当轮即修，合法 hunk 不再连坐）。
 → **成绩 13/15（+2，回到 run1 水平）**，$/solved $0.075 历史最低，缓存 88.5% 保持。element-web/c580ebf 恢复通过，21b426b 靠检索真实上游 commit 确认 `vmap=` 写法保持通过。
 → **残留**：webclients 代码库位置误判 run4 同因复发（模型断言"隐藏测试多半在 packages/metrics/tests"、全程未探查仓库根，属任务理解非机制问题）；replace_all 全 run 仅 1 次采纳，引导偏弱；edit_file 仍有空 path hunk。三项均为通用工程可继续收紧项，不涉及评测协议。
+
+**V10 · 11-21 · `40fd5f2`+starter 硬编码（full_run_6）** — 跨模型档验证：把 agent 模型从 qwen3.8-flash（standard）临时硬编码切到 qwen3.6-flash（starter）跑全量，验证 harness 在不同档的表现。
+→ **starter 档三面同时劣于 standard**：能力 4/15（standard 13/15，且失败的多是 standard 轻松通过的题，trace 出现文件路径幻觉）；成本 ¥37.31（standard run5 ¥6.94 的 5.4 倍）、$/solved **$1.31**（standard $0.075 的 17.5 倍）——根因是 qwen3.6-flash **不返回 cached_tokens（全 None）**，前缀缓存该档不生效，叠加价格倒挂（¥1.2/¥7.2 > ¥0.8/¥2.7）；指令遵循——run5 里 standard 全 15 题 0 次违反的 git 纪律，starter 下有 3/15 题 git add/stash，83909bfa 因此再次 0 字节。
+→ **判定**：档位选择本身是关键工程变量，starter 不是"更便宜"而是"更贵且更差"，本 harness 正确档位是 standard。实验后已将 model_id 回退为 MODEL_STANDARD（run6 快照冻结的是 starter 指纹，记录不受回退影响）。
 
 ## 5. Token 定价对标（稳定）
 

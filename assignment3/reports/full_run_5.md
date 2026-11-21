@@ -271,21 +271,21 @@ compaction 调用未记录 usage，成本低估可忽略。
 
 | 题目 | 层1 次数 | 层1 发生分布 | 层2 次数 | 层2 发生轮 |
 |---|---:|---|---:|---|
-| ansible/a26c325 | 2 | turn 35（×13），turn 56（×5） | 1 | turn 74 |
-| ansible/f327e65 | 3 | turn 27（×11），turn 36（×5），turn 51（×5） | 1 | turn 51 |
-| element-hq/5dfde12 | 3 | turn 26（×15），turn 37（×13），turn 78（×9） | 1 | turn 43 |
-| flipt-io/2ca5dfb | 3 | turn 26（×9），turn 41（×7），turn 85（×2） | 1 | turn 54 |
-| flipt-io/2eac0df | 1 | turn 35（×8） | 0 | 无 |
-| future-architect/5af1a22 | 2 | turn 17（×3），turn 27（×2） | 1 | turn 36 |
-| gravitational/1316e67 | 4 | turn 16（×2），turn 18（×1），turn 29（×3），turn 42（×2） | 2 | turn 19、turn 56 |
-| gravitational/89f0432 | 1 | turn 41（×7） | 0 | 无 |
-| internetarchive/4a5d2a7 | 0 | 无 | 0 | 无 |
-| internetarchive/53d376b | 2 | turn 29（×9），turn 42（×5） | 1 | turn 50 |
-| qutebrowser/21b426b | 1 | turn 35（×10） | 0 | 无 |
-| qutebrowser/c580ebf | 2 | turn 32（×10），turn 54（×4） | 1 | turn 68 |
-| qutebrowser/de4a1c1 | 5 | turn 25（×6），turn 33（×4），turn 42（×2），turn 47（×1），turn 64（×2） | 2 | turn 42、turn 69 |
-| ansible/83909bf | 2 | turn 25（×9），turn 38（×6） | 1 | turn 55 |
-| protonmail/944adbf | 0 | 无 | 0 | 无 |
+| ansible/a26c325 | — | — | 1 | turn 74 |
+| ansible/f327e65 | — | — | 1 | turn 51 |
+| element-hq/5dfde12 | — | — | 1 | turn 43 |
+| flipt-io/2ca5dfb | — | — | 1 | turn 54 |
+| flipt-io/2eac0df | — | — | 0 | 无 |
+| future-architect/5af1a22 | — | — | 1 | turn 36 |
+| gravitational/1316e67 | — | — | 2 | turn 19、turn 56 |
+| gravitational/89f0432 | — | — | 0 | 无 |
+| internetarchive/4a5d2a7 | — | — | 0 | 无 |
+| internetarchive/53d376b | — | — | 1 | turn 50 |
+| qutebrowser/21b426b | — | — | 0 | 无 |
+| qutebrowser/c580ebf | — | — | 1 | turn 68 |
+| qutebrowser/de4a1c1 | — | — | 2 | turn 42、turn 69 |
+| ansible/83909bf | — | — | 1 | turn 55 |
+| protonmail/944adbf | — | — | 0 | 无 |
 
 层 1：≥40K 且距上次归档 ≥8K 触发；窗口 = 尾部 ≤8K token；原始 ≥1200 字符才归档；bash ≥2000 字符出生即预览（不计入层 1 事件）；层 2 ≥56K（config.py）。层 1 计数依赖 agent.log；层 2 来自 latency.jsonl。
 

